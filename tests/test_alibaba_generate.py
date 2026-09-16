@@ -5,8 +5,8 @@ from __future__ import annotations
 import pytest
 
 from conftest import TP_INTL, token_plan_body
-from hermes_plugin_image_gen_ext import alibaba
-from hermes_plugin_image_gen_ext.alibaba import AlibabaImageGenProvider
+from hermes_plugin_alibaba_image_gen import alibaba
+from hermes_plugin_alibaba_image_gen.alibaba import AlibabaImageGenProvider
 
 
 def generate(prompt="a red fox", **kwargs):

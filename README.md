@@ -1,125 +1,255 @@
-# hermes-plugin-image-gen-ext
+# hermes-plugin-alibaba-image-gen
 
-Hermes Agent `image_gen` provider extensions, distributed as one pip package.
+Hermes Agent `image_gen` provider — unified Alibaba image generation. One provider name
+(`alibaba`) covers every Alibaba plan: Token Plan international, Token Plan China,
+DashScope PAYG international, DashScope PAYG China, and your own dedicated workspace /
+OpenAI-compatible endpoint. The plan and base URL are picked from whichever API key
+resolves.
 
-**`alibaba` — unified Alibaba image login.** One provider name (`alibaba`) covers every
-Alibaba plan; the plan and base URL are picked from whichever API key resolves, in
-preference order:
+Default model: `wan2.7-image` (~15s). Also available: `wan2.7-image-pro` (~40s).
 
-| Priority | Plan (Hermes profile) | Key env var | Endpoint |
-|---|---|---|---|
-| 1 | `alibaba-token-plan` | `ALIBABA_TOKEN_PLAN_API_KEY` | token-plan.ap-southeast-1.maas (intl) |
-| 2 | `alibaba-token-plan-cn` | `ALIBABA_TOKEN_PLAN_CN_API_KEY` (fallback: shared TP key) | token-plan.cn-beijing.maas |
-| 3 | `alibaba` | `DASHSCOPE_API_KEY` | dashscope-intl (PAYG) |
-| 4 | `alibaba-cn` | `DASHSCOPE_API_KEY` + `DASHSCOPE_CN_BASE_URL` | dashscope CN (skipped unless the CN base var is set) |
-| 5 | `custom` | see below | your own dedicated workspace / OpenAI-compatible endpoint, tried **last** |
+---
 
-Models: `wan2.7-image` (default), `wan2.7-image-pro`, over the OpenAI-compatible
-chat/completions endpoint; reference images supported (the model adopts the reference's
-aspect and ignores `size` then — reported via `note`). Large local references are
-recompressed to fit the gateway body limit before inlining.
+## Prerequisites
 
-## Custom endpoint (dedicated workspaces, OpenAI-compat servers)
+- [Hermes agent](https://github.com/nicepkg/hermes) installed with its venv at `~/.hermes/hermes-agent/`
+- Python >= 3.11
+- An [Alibaba Model Studio](https://bailian.console.aliyun.com) account (Token Plan or DashScope PAYG)
+- [`uv`](https://docs.astral.sh/uv/) (recommended) or pip
 
-Point the plugin at any Alibaba Model Studio **workspace endpoint**
-(`https://ws-<id>.<region>.maas.aliyuncs.com/compatible-mode/v1`) or any OpenAI-compatible
-image server. Three configuration tiers, first fully-set pair wins:
+---
+
+## GETTING STARTED
+
+### 1. Install the plugin
 
 ```bash
-# 1) env pair (also readable from ~/.hermes/.env or an OpenBao-injected boot env)
+cd hermes_plugin_alibaba_image_gen
+uv pip install --python ~/.hermes/hermes-agent/venv/bin/python3 -e .
+```
+
+### 2. Enable in Hermes
+
+```bash
+~/.hermes/hermes-agent/venv/bin/hermes plugins enable alibaba-imggen --no-allow-tool-override
+```
+
+This registers the plugin — `alibaba-imggen` becomes a row in `hermes tools` → Image
+Generation.
+
+### 3. Configure credentials
+
+Set **one** of these key sources (first one found wins):
+
+```bash
+# Option A: export (also readable from ~/.hermes/.env or OpenBao-injected boot env)
+export ALIBABA_TOKEN_PLAN_API_KEY='sk-...'        # Token Plan intl (priority 1)
+# or
+export ALIBABA_TOKEN_PLAN_CN_API_KEY='sk-...'     # Token Plan China (priority 2)
+# or
+export DASHSCOPE_API_KEY='sk-...'                 # DashScope PAYG (priority 3–4)
+```
+
+| Variable | Plan | Key source |
+|----------|------|-----------|
+| `ALIBABA_TOKEN_PLAN_API_KEY` | Token Plan intl | [bailian.console.aliyun.com](https://bailian.console.aliyun.com/?apiKey=1) |
+| `ALIBABA_TOKEN_PLAN_CN_API_KEY` | Token Plan China | Falls back to TP intl key if unset |
+| `DASHSCOPE_API_KEY` | DashScope PAYG intl | Also serves CN rung (needs `DASHSCOPE_CN_BASE_URL`) |
+
+Credentials are read through Hermes' own ladder: `auth.json` pool → `~/.hermes/.env`
+→ process env — so `hermes tools`-saved keys, `auth.json`-pooled keys, and OpenBao-injected
+boot keys all work identically.
+
+### 4. Select the provider
+
+In `~/.hermes/config.yaml`:
+```yaml
+image_gen:
+  provider: alibaba
+```
+
+Or invoke directly (no config needed):
+```bash
+hg_image.py generate --provider alibaba --prompt "a red fox in a forest"
+```
+
+### 5. Verify it works
+
+```bash
+uv run --python ~/.hermes/hermes-agent/venv/bin/python3 -c "
+from hermes_plugin_alibaba_image_gen.alibaba import AlibabaImageGenProvider
+p = AlibabaImageGenProvider()
+print('Available:', p.is_available())
+print('Models:', [m['id'] for m in p.list_models()])
+"
+```
+
+If `Available: True`, you're ready to generate.
+
+---
+
+## Features
+
+| Feature | Detail |
+|---------|--------|
+| **Auto plan selection** | Token Plan intl → Token Plan CN → PAYG intl → PAYG CN → custom. First key found wins. |
+| **Two payload surfaces** | Default `/images/generations` (OpenAI standard). Override to `/chat/completions` for Token Plan-native deploys. |
+| **Reference images** | Up to 4 refs, auto-inlined as base64 (recompressed >3MB). Aspect adopted from ref. |
+| **Model catalog** | `wan2.7-image` (default, ~15s) and `wan2.7-image-pro` (~40s). Unknown ids pass through. |
+| **Plan advancement** | 401/403/429/5xx/timeout → next plan. Bad payload/model → stop immediately. |
+| **One-shot kwargs** | `api_key=` / `base_url=` bypass the ladder entirely (used by `hg_image.py --api-key`). |
+| **Never raises** | `generate()` catches all exceptions → `error_response` the LLM can explain. |
+| **Response parsing** | Handles `data[].url`, `data[].b64_json`, `output.choices`, `message.images[]`. |
+| **Seed reporting** | Extracts `actual_seed`, `output_W`, `output_H` from Token Plan debug info. |
+
+---
+
+## Configuration Reference
+
+### Environment Variables
+
+| Variable | Purpose | Required |
+|----------|---------|----------|
+| `ALIBABA_TOKEN_PLAN_API_KEY` | Token Plan intl key | One of these |
+| `ALIBABA_TOKEN_PLAN_CN_API_KEY` | Token Plan CN key | — |
+| `DASHSCOPE_API_KEY` | DashScope PAYG key | — |
+| `DASHSCOPE_CN_BASE_URL` | Gates the `alibaba-cn` rung | For China |
+| `ALIBABA_API_KEY` + `ALIBABA_BASE_URL` | Custom workspace / OpenAI-compat | For custom rung |
+| `ALIBABA_IMAGE_MODEL` | Model override (beats config) | Optional |
+| `ALIBABA_IMAGE_PLAN` | Pin one profile, skip ladder | Optional |
+| `ALIBABA_IMAGE_ENDPOINT` | Override path (default `/images/generations`) | Optional |
+| `ALIBABA_TOKEN_PLAN_BASE_URL` | Override Token Plan intl host | Optional |
+| `ALIBABA_TOKEN_PLAN_CN_BASE_URL` | Override Token Plan CN host | Optional |
+
+### config.yaml
+
+```yaml
+image_gen:
+  provider: alibaba              # select as default provider
+  alibaba:
+    model: wan2.7-image          # default model
+    endpoint: /images/generations  # or /chat/completions for Token Plan
+    # api_key: sk-...            # or keep secrets in env/vault
+    # base_url: https://...
+    # provider: ws1              # reference top-level providers.<name>
+
+# Optional: reference a Hermes custom provider entry
+providers:
+  ws1:
+    api: https://ws-.../compatible-mode/v1
+    key_env: WS1_KEY
+```
+
+### Credential Resolution Order
+
+1. `api_key=` / `base_url=` kwargs (one-shot, never persisted)
+2. Hermes resolver (`resolve_runtime_provider`): `auth.json` pool → `~/.hermes/.env` → process env
+3. Fallback: plain env reads (outside a Hermes process)
+
+---
+
+## Custom Workspace Endpoints
+
+Point the plugin at any Alibaba Model Studio workspace
+(`https://ws-<id>.<region>.maas.aliyuncs.com/compatible-mode/v1`) or any OpenAI-compatible
+image server. Three configuration tiers — first fully-set pair wins:
+
+```bash
+# Tier 1: env pair
 export ALIBABA_API_KEY='sk-ws-...'
 export ALIBABA_BASE_URL='https://ws-hb5vus2qhrcc9f96.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1'
-export ALIBABA_IMAGE_MODEL='wan2.7-image-my-deploy'   # any model id, unknown ids pass through
 ```
+
 ```yaml
-# 2) scoped config — ~/.hermes/config.yaml
+# Tier 2: scoped config — ~/.hermes/config.yaml
 image_gen:
   alibaba:
-    api_key: sk-ws-...          # or better: keep the secret in env/vault, base here
+    api_key: sk-ws-...
     base_url: https://ws-.../compatible-mode/v1
-# 3) reference a Hermes custom provider entry (pool/GUI-manageable)
+```
+
+```yaml
+# Tier 3: reference a Hermes custom provider entry (pool/GUI-manageable)
 providers:
   ws1: { api: https://ws-.../compatible-mode/v1, key_env: WS1_KEY }
 image_gen:
   alibaba: { provider: ws1 }
 ```
 
-Semantics: the custom rung is tried **after** the named plans (or exclusively with
-`ALIBABA_IMAGE_PLAN=custom`); a half-set pair is ignored. By default the provider POSTs
-`POST {base}/images/generations` (the OpenAI standard shape) and parses `data[].url`,
-`data[].b64_json`. Reference images are rejected with `modality_unsupported` — the images
-surface has no image input. One-off use without any config: `hg_image.py generate
---provider alibaba --api-key K --base-url U --model M …` (the kwargs pin is tried **first**,
-bypassing the ladder).
+**Semantics:**
+- The custom rung is tried **last** (after all named plans)
+- Use `ALIBABA_IMAGE_PLAN=custom` to pin exclusively to the custom rung
+- A half-set pair (key without base, or vice versa) is ignored
+- If your workspace speaks `/chat/completions` natively, set `ALIBABA_IMAGE_ENDPOINT=/chat/completions`
 
-### Overriding the endpoint
+---
 
-Alibaba's Token Plan and some workspace deploys speak `/chat/completions` natively. Override
-the default path:
+## How It Works
 
-```bash
-export ALIBABA_IMAGE_ENDPOINT="/chat/completions"
+### Request flow
+
+```
+_candidate_plans() → _resolve_plan_credentials() → _resolve_endpoint() → POST
 ```
 
-Or in config (`~/.hermes/config.yaml`):
-```yaml
-image_gen:
-  alibaba:
-    endpoint: /chat/completions
+1. **Plan selection** — builds the ladder (Token Plan → PAYG → custom), applies `ALIBABA_IMAGE_PLAN` pin
+2. **Credential resolution** — for each plan, resolves `(api_key, base_url)` through Hermes' ladder
+3. **Endpoint resolution** — `ALIBABA_IMAGE_ENDPOINT` env → config → `/images/generations` default
+4. **Single POST** — no retry, no fallback. On failure, `_should_advance()` decides: next plan or stop
+
+### Default surface (`/images/generations`)
+
+```
+POST {base}/images/generations
+Body: {model, prompt, n: 1, size}
 ```
 
-Resolution: `ALIBABA_IMAGE_ENDPOINT` env → `image_gen.alibaba.endpoint` config → `/images/generations`.
+Reference images are **rejected** — returns `modality_unsupported` before any POST.
 
-The provider POSTs **once** to `{base_url}{endpoint}` — no retry, no fallback. Payload shape
-is inferred from the path: a path containing `images/generations` sends the OpenAI images
-payload (`{model, prompt, n, size}`); anything else sends the chat payload
-(`{model, messages, size}`). The override applies to **all plans** — a named plan also
-honors it. Reference images require the chat surface — `/images/generations` + refs returns
-`modality_unsupported` before any POST.
+### Chat surface (`ALIBABA_IMAGE_ENDPOINT=/chat/completions`)
 
-Keys are read through Hermes' own credential ladder (`resolve_runtime_provider`:
-`auth.json` credential pool → `~/.hermes/.env` → process env), so OpenBao-injected boot
-keys, `hermes tools`-saved keys, and `hermes auth`-pooled keys all work identically.
-On a generate call, 401/403/429/5xx/timeout/unknown-model-on-PAYG failures **advance to
-the next plan**; the result reports `plan` and `plans_tried`.
-
-## Install (editable dev) + enable
-
-```bash
-uv pip install --python ~/.hermes/hermes-agent/venv/bin/python3 -e .
-~/.hermes/hermes-agent/venv/bin/hermes plugins enable alibaba-imggen --no-allow-tool-override
+```
+POST {base}/chat/completions
+Body: {model, messages: [{role: "user", content: [text, ...images]}], size}
 ```
 
-`alibaba-imggen` (the entry-point name) becomes a row in `hermes tools` → Image
-Generation. Hermes' own `image_generate` tool uses it once
-`image_gen.provider: alibaba` is set in `~/.hermes/config.yaml`; the
-`image-pipeline` skill's `hg_image.py` reaches it by name regardless.
+Reference images are supported — inlined as base64 content parts.
 
-Optional config / env:
+### Failure handling
 
-- `image_gen.alibaba.model` or `ALIBABA_IMAGE_MODEL` — default model.
-- `ALIBABA_IMAGE_PLAN` — pin one profile (e.g. `alibaba`) and skip the ladder.
-- `ALIBABA_TOKEN_PLAN_BASE_URL` / `ALIBABA_TOKEN_PLAN_CN_BASE_URL` / `DASHSCOPE_CN_BASE_URL`
-  — per-plan endpoint overrides.
+| Failure | Action |
+|---------|--------|
+| 401, 403, 429 | Advance to next plan |
+| 5xx, timeout, connection error | Advance to next plan |
+| Model not found on unverified PAYG | Advance to next plan |
+| 4xx (bad payload), model error on verified plan | Stop immediately |
 
-`generate()` also honors `api_key=` / `base_url=` kwargs (used by `hg_image.py
---api-key`) — pinned for that call only, never persisted. Prefer these over writing
-`os.environ`: Hermes' ladder *prefers `~/.hermes/.env` over the process env*, so a
-same-named env var would shadow it.
+The result always reports `plan` (which plan answered) and `plans_tried` (the full attempt chain).
+
+---
 
 ## Caveats
 
-- **PAYG (rungs 3–4) model availability is unverified** — wan models are proven on Token
-  Plan; if a PAYG endpoint lacks them you get an explicit error pointing at
-  `GET {base}/models`. Unknown model ids always pass through so you can name what's there.
-- A later plugin registering provider name `alibaba` **replaces this one** (Hermes'
-  registry is last-writer-wins) — that's the supported override surface; see
-  `packaging/alibaba-dir-install/` for the directory-install manifest reference.
-- `hermes tools` prompts only `ALIBABA_TOKEN_PLAN_API_KEY` (one prompt); PAYG users set
-  `DASHSCOPE_API_KEY` out of band — the ladder picks it up.
+- **PAYG (rungs 3–4) model availability is unverified** — wan models are proven on Token Plan
+  only. If a PAYG endpoint lacks them, you get an explicit error pointing at `GET {base}/models`.
+  Unknown model ids always pass through so you can name what's deployed.
+- **Reference images require `/chat/completions`** — the `/images/generations` surface has no
+  image input. Use `ALIBABA_IMAGE_ENDPOINT=/chat/completions` (applies to all plans), or omit refs.
+- **Last-writer-wins** — another plugin registering provider name `alibaba` replaces this one.
+  That's the supported override surface; see `packaging/alibaba-dir-install/` for the
+  directory-install manifest.
+- **Picker shows one prompt** — `hermes tools` only asks for `ALIBABA_TOKEN_PLAN_API_KEY`.
+  PAYG users set `DASHSCOPE_API_KEY` out of band; the ladder picks it up.
+- **`generate()` never raises** — all errors return an `error_response` dict the LLM can explain.
 
-## Tests
+---
+
+## Testing
 
 ```bash
-~/.hermes/hermes-agent/venv/bin/python3 -m pytest tests   # needs the Hermes venv (imports agent/hermes_cli)
+uv run --python ~/.hermes/hermes-agent/venv/bin/python3 -m pytest tests/
 ```
+
+83 tests covering: credential ladder order, payload shapes, response parsing, reference
+images, plan advancement, env/config fallback, endpoint overrides, and the full generate
+happy path. Tests run against mocked HTTP — no live API calls.

@@ -1,5 +1,5 @@
 [project]
-name = "hermes-plugin-image-gen-ext"
+name = "hermes-plugin-alibaba-image-gen"
 version = "0.1.0"
 description = "Hermes image_gen provider extensions — unified Alibaba login (Token Plan intl/CN + DashScope PAYG)"
 readme = "README.md"
@@ -17,7 +17,7 @@ dev = [
 ]
 
 [project.entry-points."hermes_agent.plugins"]
-alibaba-imggen = "hermes_plugin_image_gen_ext"
+alibaba-imggen = "hermes_plugin_alibaba_image_gen"
 
 [build-system]
 requires = ["uv_build>=0.12.9,<0.13.0"]

@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from conftest import TP_INTL, fake_runtime, token_plan_body
-from hermes_plugin_image_gen_ext.alibaba import AlibabaImageGenProvider
+from hermes_plugin_alibaba_image_gen.alibaba import AlibabaImageGenProvider
 
 WS = "https://ws-hb5vus2qhrcc9f96.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1"
 

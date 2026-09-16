@@ -104,7 +104,7 @@ def resolver_plans(monkeypatch):
 @pytest.fixture
 def posted(monkeypatch):
     """Capture post_json calls; each call pops the next queued (body, failure) pair."""
-    from hermes_plugin_image_gen_ext import alibaba
+    from hermes_plugin_alibaba_image_gen import alibaba
 
     calls = []
     box = {"queue": [], "calls": calls}
@@ -120,7 +120,7 @@ def posted(monkeypatch):
 @pytest.fixture
 def saved(monkeypatch):
     """Intercept image materialization; record how it was called."""
-    from hermes_plugin_image_gen_ext import alibaba
+    from hermes_plugin_alibaba_image_gen import alibaba
 
     box = {}
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from hermes_plugin_image_gen_ext.alibaba import AlibabaImageGenProvider
+from hermes_plugin_alibaba_image_gen.alibaba import AlibabaImageGenProvider
 
 
 def make_provider():

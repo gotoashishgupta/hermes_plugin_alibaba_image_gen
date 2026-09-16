@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from conftest import TP_INTL, fake_runtime, token_plan_body
-from hermes_plugin_image_gen_ext.alibaba import AlibabaImageGenProvider
+from hermes_plugin_alibaba_image_gen.alibaba import AlibabaImageGenProvider
 from plugins.image_gen._common import HttpFailure
 
 TP_CN = "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1"
