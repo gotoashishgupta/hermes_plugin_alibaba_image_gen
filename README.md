@@ -45,13 +45,37 @@ image_gen:
 ```
 
 Semantics: the custom rung is tried **after** the named plans (or exclusively with
-`ALIBABA_IMAGE_PLAN=custom`); a half-set pair is ignored. Requests use
-`chat/completions` first; on a `404` (never billed) a custom plan automatically retries
-the OpenAI `POST {base}/images/generations` shape and parses `data[].url`, `data[].b64_json`
-and `message.images[]` responses. With reference images there is no retry — edits need the
-chat surface, and a reference is never silently dropped. One-off use without any config:
-`hg_image.py generate --provider alibaba --api-key K --base-url U --model M …` (the kwargs
-pin is tried **first**, bypassing the ladder).
+`ALIBABA_IMAGE_PLAN=custom`); a half-set pair is ignored. By default the provider POSTs
+`POST {base}/images/generations` (the OpenAI standard shape) and parses `data[].url`,
+`data[].b64_json`. Reference images are rejected with `modality_unsupported` — the images
+surface has no image input. One-off use without any config: `hg_image.py generate
+--provider alibaba --api-key K --base-url U --model M …` (the kwargs pin is tried **first**,
+bypassing the ladder).
+
+### Overriding the endpoint
+
+Alibaba's Token Plan and some workspace deploys speak `/chat/completions` natively. Override
+the default path:
+
+```bash
+export ALIBABA_IMAGE_ENDPOINT="/chat/completions"
+```
+
+Or in config (`~/.hermes/config.yaml`):
+```yaml
+image_gen:
+  alibaba:
+    endpoint: /chat/completions
+```
+
+Resolution: `ALIBABA_IMAGE_ENDPOINT` env → `image_gen.alibaba.endpoint` config → `/images/generations`.
+
+The provider POSTs **once** to `{base_url}{endpoint}` — no retry, no fallback. Payload shape
+is inferred from the path: a path containing `images/generations` sends the OpenAI images
+payload (`{model, prompt, n, size}`); anything else sends the chat payload
+(`{model, messages, size}`). The override applies to **all plans** — a named plan also
+honors it. Reference images require the chat surface — `/images/generations` + refs returns
+`modality_unsupported` before any POST.
 
 Keys are read through Hermes' own credential ladder (`resolve_runtime_provider`:
 `auth.json` credential pool → `~/.hermes/.env` → process env), so OpenBao-injected boot

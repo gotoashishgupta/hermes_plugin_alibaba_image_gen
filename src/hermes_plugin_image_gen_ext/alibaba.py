@@ -367,6 +367,25 @@ class AlibabaImageGenProvider(ImageGenProvider):
                 return candidate.strip()
         return DEFAULT_MODEL
 
+    @staticmethod
+    def _resolve_endpoint() -> str:
+        """Endpoint path — always returns a valid path (never None).
+
+        ``ALIBABA_IMAGE_ENDPOINT`` env → ``image_gen.alibaba.endpoint`` config →
+        ``/images/generations``. The provider POSTs once to ``{base_url}{endpoint}``
+        with no retry. Payload shape is inferred from the path: ``images/generations``
+        → images payload; anything else → chat payload. Invalid values fall through
+        to the default.
+        """
+        env_val = (os.environ.get("ALIBABA_IMAGE_ENDPOINT") or "").strip()
+        if env_val.startswith("/"):
+            return env_val
+        cfg = load_image_gen_config("alibaba")
+        cfg_val = str(cfg.get("endpoint") or "").strip()
+        if cfg_val.startswith("/"):
+            return cfg_val
+        return "/images/generations"
+
     def capabilities(self) -> Dict[str, Any]:
         # Verified: wan2.7-image accepts an image content part and adopts its aspect.
         return {"modalities": ["text", "image"], "max_reference_images": MAX_REFERENCES}
@@ -481,37 +500,34 @@ class AlibabaImageGenProvider(ImageGenProvider):
                 error_type="missing_api_key", provider=PROVIDER_ID,
                 model=model, prompt=prompt, aspect_ratio=aspect_ratio)
 
+        endpoint = self._resolve_endpoint()
+        is_images = "images/generations" in endpoint
         tried: List[str] = []
         last_failure: Optional[HttpFailure] = None
         last_plan: Optional[Plan] = None
         for plan, (api_key, base_url) in attempts:
             headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
-            variants = [(f"{base_url}/chat/completions", {
-                "model": model,
-                "messages": [{"role": "user", "content": content}],
-                "size": _SIZES.get(aspect_ratio, _SIZES["landscape"]),
-            })]
-            # Custom endpoints only: on a chat 404 (never billed) fall through to the
-            # OpenAI images surface. Refs stay chat-only — /images/generations has no
-            # image input, and we never silently drop a reference.
-            if plan.profile == "custom" and len(content) == 1:
-                variants.append((f"{base_url}/images/generations", {
-                    "model": model,
-                    "prompt": prompt,
-                    "n": 1,
-                    "size": OPENAI_SIZES.get(aspect_ratio, OPENAI_SIZES["square"]),
-                }))
-            failure: Optional[HttpFailure] = None
-            for index, (url, payload) in enumerate(variants):
-                body, failure = post_json(
-                    url, headers=headers, payload=payload,
-                    timeout=(20.0, 300.0), label=f"Alibaba {plan.profile}")
-                if failure is None:
-                    return self._success(body, plan=plan, model=model, prompt=prompt,
-                                         aspect_ratio=aspect_ratio, modality=modality,
-                                         notes=notes, tried=tried + [plan.profile])
-                if index == len(variants) - 1 or failure.kind != "http" or failure.status != 404:
-                    break
+            if is_images and len(content) > 1:
+                return error_response(
+                    error="reference images are not supported on the /images/generations "
+                          "surface (set ALIBABA_IMAGE_ENDPOINT=/chat/completions, or omit "
+                          "references)",
+                    error_type="modality_unsupported", provider=PROVIDER_ID,
+                    model=model, prompt=prompt, aspect_ratio=aspect_ratio)
+            payload: Dict[str, Any] = (
+                {"model": model, "prompt": prompt, "n": 1,
+                 "size": OPENAI_SIZES.get(aspect_ratio, OPENAI_SIZES["square"])}
+                if is_images else
+                {"model": model, "messages": [{"role": "user", "content": content}],
+                 "size": _SIZES.get(aspect_ratio, _SIZES["landscape"])}
+            )
+            body, failure = post_json(
+                f"{base_url}{endpoint}", headers=headers, payload=payload,
+                timeout=(20.0, 300.0), label=f"Alibaba {plan.profile}")
+            if failure is None:
+                return self._success(body, plan=plan, model=model, prompt=prompt,
+                                     aspect_ratio=aspect_ratio, modality=modality,
+                                     notes=notes, tried=tried + [plan.profile])
             tried.append(plan.profile)
             last_failure, last_plan = failure, plan
             if not _should_advance(plan, failure):

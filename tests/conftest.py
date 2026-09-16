@@ -23,6 +23,7 @@ CREDENTIAL_ENVS = (
     "DASHSCOPE_API_KEY",
     "ALIBABA_IMAGE_MODEL",
     "ALIBABA_IMAGE_PLAN",
+    "ALIBABA_IMAGE_ENDPOINT",
 )
 
 
@@ -66,18 +67,23 @@ def token_plan_body(image="https://dashscope-result.example/x.png", debug=True):
 
 @pytest.fixture
 def tp_creds(monkeypatch):
-    """Only the intl Token Plan resolves."""
+    """Only the intl Token Plan resolves. Token Plan speaks chat/completions natively,
+    so pin the endpoint to match (the plugin default is /images/generations)."""
     def fake(requested=None, **kwargs):
         if requested == "alibaba-token-plan":
             return fake_runtime("sk-tp", TP_INTL, provider="alibaba-token-plan")
         raise RuntimeError(f"no credentials for {requested}")
 
     monkeypatch.setattr("hermes_cli.runtime_provider.resolve_runtime_provider", fake)
+    monkeypatch.setenv("ALIBABA_IMAGE_ENDPOINT", "/chat/completions")
 
 
 @pytest.fixture
 def resolver_plans(monkeypatch):
-    """Scriptable resolver: plans dict maps profile -> runtime | exception; records probe order."""
+    """Scriptable resolver: plans dict maps profile -> runtime | exception; records probe order.
+
+    Pins ALIBABA_IMAGE_ENDPOINT=/chat/completions so named-plan tests exercise the
+    Token Plan native payload shape (the plugin default is /images/generations)."""
     calls = []
     box = {"calls": calls, "plans": {}}
 
@@ -91,6 +97,7 @@ def resolver_plans(monkeypatch):
         return outcome
 
     monkeypatch.setattr("hermes_cli.runtime_provider.resolve_runtime_provider", fake)
+    monkeypatch.setenv("ALIBABA_IMAGE_ENDPOINT", "/chat/completions")
     return box
 
 
