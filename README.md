@@ -168,39 +168,198 @@ providers:
 
 ---
 
-## Custom Workspace Endpoints
+## Working Example Configurations (copy-paste)
 
-Point the plugin at any Alibaba Model Studio workspace
-(`https://ws-<id>.<region>.maas.aliyuncs.com/compatible-mode/v1`) or any OpenAI-compatible
-image server. Three configuration tiers — first fully-set pair wins:
+Every example assumes the plugin is installed and enabled and this is set:
+
+```yaml
+# ~/.hermes/config.yaml
+image_gen:
+  provider: alibaba
+```
+
+Only **one** credential rung needs to be present — first rung found wins
+(`alibaba-token-plan` → `alibaba-token-plan-cn` → `alibaba` → `alibaba-cn` → `custom` last). Verify with `hermes plugins doctor alibaba --ci`; `is_available()` is `True` when any rung below resolves. No live key is committed — replace `sk-...` placeholders. Hermes resolves credentials via `resolve_runtime_provider` (`auth.json` pool → `~/.hermes/.env` → process env) with a host guard, falling back to plain `get_secret` env reads outside Hermes.
+
+### 1. Token Plan international (verified, `wan2.7-image`/`wan2.7-image-pro`)
 
 ```bash
-# Tier 1: env pair
+export ALIBABA_TOKEN_PLAN_API_KEY='sk-tp-intl-...'
+```
+
+Optional base override (must keep same host family):
+
+```bash
+export ALIBABA_TOKEN_PLAN_BASE_URL='https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1'
+```
+
+### 2. Token Plan China (verified; falls back to intl key)
+
+```bash
+export ALIBABA_TOKEN_PLAN_CN_API_KEY='sk-tp-cn-...'
+# if unset, ALIBABA_TOKEN_PLAN_API_KEY is used for this rung
+```
+
+Optional:
+
+```bash
+export ALIBABA_TOKEN_PLAN_CN_BASE_URL='https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1'
+```
+
+### 3. DashScope PAYG international
+
+```bash
+export DASHSCOPE_API_KEY='sk-dashscope-...'
+# base defaults to https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+```
+
+### 4. DashScope PAYG China (requires explicit base)
+
+```bash
+export DASHSCOPE_API_KEY='sk-dashscope-...'
+export DASHSCOPE_CN_BASE_URL='https://dashscope.aliyuncs.com/compatible-mode/v1'
+```
+
+Without `DASHSCOPE_CN_BASE_URL` the `alibaba-cn` rung is skipped.
+
+### 5. Custom workspace — Tier 1: env pair (first fully-set pair wins)
+
+```bash
 export ALIBABA_API_KEY='sk-ws-...'
 export ALIBABA_BASE_URL='https://ws-hb5vus2qhrcc9f96.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1'
 ```
 
+Half-set (key without base or vice versa) is ignored — never mixes with another tier.
+
+### 6. Custom workspace — Tier 2: scoped config
+
 ```yaml
-# Tier 2: scoped config — ~/.hermes/config.yaml
+# ~/.hermes/config.yaml
 image_gen:
+  provider: alibaba
   alibaba:
     api_key: sk-ws-...
-    base_url: https://ws-.../compatible-mode/v1
+    base_url: https://ws-hb5vus2qhrcc9f96.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1
+```
+
+### 7. Custom workspace — Tier 3: provider ref (pool/GUI-manageable)
+
+```yaml
+# ~/.hermes/config.yaml
+providers:
+  ws1:
+    api: https://ws-hb5vus2qhrcc9f96.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1
+    key_env: WS1_KEY   # or api_key: sk-... / key: sk-...
+image_gen:
+  provider: alibaba
+  alibaba:
+    provider: ws1
+```
+
+`providers.<name>` accepts `api`/`url`/`base_url` + `api_key`/`key`/`key_env`. Hermes pool/GUI can manage `WS1_KEY`.
+
+### 8. Model selection
+
+Default is `wan2.7-image` (also `wan2.7-image-pro`). Precedence is
+`model=` kwarg → `ALIBABA_IMAGE_MODEL` env → `image_gen.alibaba.model` → `image_gen.model` → default. Unknown ids pass through (PAYG may serve other models).
+
+```bash
+export ALIBABA_IMAGE_MODEL='wan2.7-image-pro'
 ```
 
 ```yaml
-# Tier 3: reference a Hermes custom provider entry (pool/GUI-manageable)
-providers:
-  ws1: { api: https://ws-.../compatible-mode/v1, key_env: WS1_KEY }
+# scoped beats top-level
 image_gen:
-  alibaba: { provider: ws1 }
+  provider: alibaba
+  model: wan2.7-image
+  alibaba:
+    model: wan2.7-image-pro
 ```
 
-**Semantics:**
+```python
+# explicit kwarg wins over all
+provider.generate("a cat", model="wan2.7-image-pro")
+```
+
+### 9. Endpoint surface
+
+Default `POST {base}/images/generations` (`size` honoured, refs rejected as `modality_unsupported`). Set to `POST {base}/chat/completions` for Token Plan-native or reference images (refs inlined as base64; `size` ignored).
+
+```bash
+export ALIBABA_IMAGE_ENDPOINT='/chat/completions'
+```
+
+```yaml
+image_gen:
+  provider: alibaba
+  alibaba:
+    endpoint: /chat/completions
+```
+
+Non-`/` values fall through to `/images/generations`.
+
+```yaml
+# Token Plan-native example
+image_gen:
+  provider: alibaba
+  alibaba:
+    model: wan2.7-image
+    endpoint: /chat/completions
+```
+
+### 10. Pin the ladder
+
+Skip all other rungs; empty → normal ladder.
+
+```bash
+export ALIBABA_IMAGE_PLAN='custom'   # or alibaba-token-plan | alibaba-token-plan-cn | alibaba | alibaba-cn
+```
+
+```yaml
+# config does not pin; use the env var above. Custom last unless pinned:
+# ALIBABA_IMAGE_PLAN=custom makes only the custom rung eligible.
+```
+
+### 11. One-shot bypass (no config/env write)
+
+Pinned synthetic plan `explicit`; skips the ladder because `~/.hermes/.env` shadows process env for one-offs.
+
+```python
+from alibaba import AlibabaImageGenProvider
+p = AlibabaImageGenProvider()
+res = p.generate(
+    "a red fox in a forest",
+    aspect_ratio="landscape",
+    model="wan2.7-image",
+    api_key="sk-oneoff-...",
+    base_url="https://ws-hb5vus2qhrcc9f96.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
+)
+```
+
+### 12. Where keys are read
+
+- **Inside Hermes:** `resolve_runtime_provider(requested=profile)` probes `auth.json` pool → `~/.hermes/.env` → process env per rung; host guard rejects a runtime that points at the wrong host family.
+- **Outside Hermes / tests:** `get_secret()` plain env reads with per-plan defaults above.
+- **Picker:** `hermes tools` prompts `ALIBABA_TOKEN_PLAN_API_KEY` as required and `ALIBABA_API_KEY` as optional; PAYG/DashScope keys are set out-of-band and picked up by the ladder.
+
+Check after each setup:
+
+```bash
+hermes plugins doctor alibaba --ci
+hermes plugins list | grep alibaba
+# is_available() == True when any rung above has a key; generation itself is live/charged
+```
+
+---
+
+## Custom Workspace Endpoints (semantics)
+
+The three custom tiers above are the only custom surface — first fully-set pair wins. Additional notes:
+
 - The custom rung is tried **last** (after all named plans)
-- Use `ALIBABA_IMAGE_PLAN=custom` to pin exclusively to the custom rung
-- A half-set pair (key without base, or vice versa) is ignored
-- If your workspace speaks `/chat/completions` natively, set `ALIBABA_IMAGE_ENDPOINT=/chat/completions`
+- `ALIBABA_IMAGE_PLAN=custom` pins exclusively to it
+- A half-set pair is ignored
+- If the workspace speaks `/chat/completions` natively, set `ALIBABA_IMAGE_ENDPOINT=/chat/completions`
 
 ---
 
