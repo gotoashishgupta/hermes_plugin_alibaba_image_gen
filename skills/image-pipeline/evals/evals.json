@@ -1,0 +1,59 @@
+{
+  "skill_name": "image-pipeline",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Make a landscape product shot for my coffee brand Harbor Roast using the attached brand guidelines. Scene: a ceramic mug of fresh coffee sitting on a weathered dock railing, the harbor and boats behind it, warm early-morning light. Follow the brand style from the guide.",
+      "expected_output": "A generated landscape image saved to a file, preceded by the pipeline trace: a Visual Design DNA extracted from the reference guidelines, design concepts, the one concept chosen, and a scorecard showing the image passed evaluation (overall >= 4.0/5) with the five criterion scores. The image should visibly follow the Harbor Roast palette (ink/paper/ember/harbor/sand) and warm-coastal voice.",
+      "files": [
+        "fixtures/harbor_roast_guidelines.png"
+      ],
+      "assertions": [
+        "A .png image file was generated in the outputs directory",
+        "The generated image is landscape (width greater than height)",
+        "report.md documents the Visual Design DNA extracted from the reference guidelines",
+        "report.md contains an evaluation scorecard with the five criteria and a numeric overall score",
+        "The image was accepted only after passing the gate (overall >= 4.0 and pass is true)",
+        "The generated image visibly uses the Harbor Roast palette (ink/paper/ember/harbor/sand) and a warm coastal mood",
+        "The brief's condition adjective is honoured rather than tinted: the railing is visibly weathered (silvered or greyed grain, lengthwise splits or checking, softened arrises, lichen or salt bleaching) and not new, smooth, uniform timber",
+        "The trace names the provider and model that produced the image"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Design a square poster for a beach-volleyball tournament called \"Summer Smash\". It should be bright, bold and energetic — think hot summer sun, sand, a ball arcing over a net. No reference image; invent a fitting visual identity from the description.",
+      "expected_output": "A generated square image saved to a file, with the pipeline trace: style DNA derived from the brief text, design concepts, chosen concept, and a scorecard showing evaluation passed. The image should match the brief (square, bright/bold, volleyball scene, poster feel).",
+      "files": [],
+      "assertions": [
+        "A .png image file was generated in the outputs directory",
+        "The generated image is square (width equals height)",
+        "report.md documents a style DNA derived from the brief text (no reference image was supplied)",
+        "report.md contains an evaluation scorecard with the five criteria and a numeric overall score",
+        "The image was accepted only after passing the gate (overall >= 4.0 and pass is true)",
+        "The image matches the brief: a bright, bold, energetic summer beach-volleyball scene with a ball and net",
+        "The depicted scene is physically coherent: the two opposing players are on opposite sides of the net, and the action happens over sand rather than open water",
+        "The image contains no text beyond the text the brief requested (no invented taglines, badges or wordmarks)",
+        "The trace names the provider and model that produced the image"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Make a UI mockup of a desktop web landing page for a focus-timer product called \"Flowstate\". Landscape, 16:9. Calm and minimalist, generous whitespace, soft teal accent, modern sans-serif type.",
+      "expected_output": "A generated landscape image of a UI mockup saved to a file, with the pipeline trace and a passing scorecard. The mockup should look like a clean productivity-app landing page (hero, headline, call-to-action) matching the calm/minimal/teal brief.",
+      "files": [],
+      "assertions": [
+        "A .png image file was generated in the outputs directory",
+        "The generated image is landscape (width greater than height)",
+        "report.md documents a style DNA derived from the brief (no reference image was supplied)",
+        "report.md contains an evaluation scorecard with the five criteria and a numeric overall score",
+        "The image was accepted only after passing the gate (overall >= 4.0 and pass is true)",
+        "The image reads as a landing-page UI mockup with structure beyond a hero section: a headline plus at least one of a nav bar, a supporting sub-head, or a secondary section, in a calm, minimalist style with a teal accent",
+        "Every string of text rendered in the image is correctly spelled and legible",
+        "The timer dial is self-consistent with its own readout under a convention the image itself fixes: the filled fraction of the ring matches the value printed inside it (a dial labelled \"remaining\" is a countdown, so the filled arc is the time remaining), measured to within about 10 percentage points",
+        "The image was produced by the layout route (HTML/CSS authored and rasterised at 2x), which the skill makes the default for landing-page briefs carrying more than a phrase of legible type",
+        "Any interactive or transient state in the mockup (popup, toast, tooltip, dropdown, modal, hover highlight, drag ghost) has a visible cause in the same frame — a cursor on its trigger, a highlighted active control, or a dimmed backdrop. A transient element with no cause anywhere in the frame fails, as does one contradicted by its own copy",
+        "The trace states how the image was produced — the provider and model for a diffusion route, or the rasteriser for a layout route"
+      ]
+    }
+  ]
+}

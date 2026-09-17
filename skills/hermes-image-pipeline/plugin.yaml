@@ -1,0 +1,6 @@
+name: hermes-image-pipeline
+version: 0.1.0
+description: Hermes-native quality-gated image pipeline skill (brand DNA -> concepts -> gated generation -> evaluation) driving the bundled hg_image.py against Hermes' image_gen providers
+author: Ashish Gupta
+kind: standalone
+python_dependencies: []
