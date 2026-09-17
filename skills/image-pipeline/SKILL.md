@@ -41,7 +41,7 @@ steps in brief:
    engine gives exact spacing and vector-crisp glyphs that diffusion only approximates.
    Say which route you took in the deliverable.
 3. **generate_idea_image** — run the selected concept's prompt through
-   `scripts/hg_image.py` (details below). The script handles provider discovery, the
+   `scripts/imagegen.py` (details below). The script handles provider discovery, the
    Hermes-or-standalone routing ladder, and (with `--fallback`) automatic retry through
    the other credentialed providers.
 4. **evaluate_image** — visually score the generated image against the DNA across five
@@ -56,7 +56,7 @@ composition, and per-model notes.
 
 ## Generating the image (stage 3)
 
-The pipeline drives `scripts/hg_image.py`. Any `python3` works — when Hermes is present
+The pipeline drives `scripts/imagegen.py`. Any `python3` works — when Hermes is present
 the script re-execs into its venv by itself.
 
 Resolve `SKILL_DIR` from where this skill actually lives in the current harness — it is
@@ -67,8 +67,8 @@ their own packages via `__file__`).
 ```bash
 SKILL_DIR="${CLAUDE_SKILL_DIR:-<dir containing this SKILL.md>}"
 PY=python3   # the script re-execs into $HOME/.hermes/hermes-agent/venv/bin/python itself
-"$PY" "$SKILL_DIR/scripts/hg_image.py" list       # see which providers are credentialed
-"$PY" "$SKILL_DIR/scripts/hg_image.py" generate \
+"$PY" "$SKILL_DIR/scripts/imagegen.py" list       # see which providers are credentialed
+"$PY" "$SKILL_DIR/scripts/imagegen.py" generate \
   --prompt "<concept prompt>" \
   [--provider openrouter|openai|openai-codex|gemini|fal|alibaba|<custom>] \
   [--model <model id>] \
@@ -107,7 +107,7 @@ charge of quality:
 - Pass the deck's brand DNA (extracted from the template) in place of re-deriving stage 1 —
   but never skip stages 2 and 4; the 4.0 gate is not negotiable to fill a placeholder.
 - Ask for the slide canvas with `--size 1920x1080` (16:9) — or the deck's own pixel
-  canvas. Providers rarely serve arbitrary pixels: the payload's `size_note` + measured
+  canvas. Providers rarely serve arbitrary pixels: the payload's `notes` + measured
   `width`/`height` say what actually arrived. Place artwork with crop-to-fill or upscale —
   never stretch.
 - Write artwork to `<deck-project>/art/slide-<NN>-attempt-<N>.png` and record
@@ -118,7 +118,7 @@ charge of quality:
 Rules, in the user's own words:
 
 - **Selection is explicit and credentialed.** Every registered provider — FAL included —
-  is selectable once it has credentials; `hg_image.py list` shows which do. Nothing routes
+  is selectable once it has credentials; `imagegen.py list` shows which do. Nothing routes
   anywhere by surprise: the script picks by name or by its preference order, and the
   `--json` payload reports the provider and model that actually produced the image, so a
   config-driven fallback (Hermes maps an unconfigured or `nous` selection onto FAL) is
@@ -127,12 +127,12 @@ Rules, in the user's own words:
   checkout, its configured image providers come first and secrets resolve through Hermes —
   the script stores nothing. Without Hermes (or with it unconfigured), the script picks
   among env-credentialed built-in adapters, under the same explicitness rule.
-  `hg_image.py list` shows which are actually credentialed (OK rows); only those are
+  `imagegen.py list` shows which are actually credentialed (OK rows); only those are
   selectable.
 - **Honour an explicitly named provider/model.** If the user says "use Alibaba Token
   plan" or "use Nano Banana 2", pass `--provider alibaba` / `--model
   google/gemini-3.1-flash-image` exactly as named. Check the models the provider offers
-  with `hg_image.py list --models` if unsure.
+  with `imagegen.py list --models` if unsure.
 - **Accept the user's own API key.** `--provider X --api-key <key>` injects the key for
   that single call; nothing is persisted. This is how a user with their own key on an
   otherwise-uncredentialed provider gets in.
@@ -142,7 +142,7 @@ Rules, in the user's own words:
   backends and reports which one actually produced the image (the payload's `attempts`
   lists what failed before the winner).
 - **Exact-pixel briefs go through `--size`, and the snap trail is part of the truth.**
-  For deck canvases (`--size 1920x1080`) read `size_note` and the measured
+  For deck canvases (`--size 1920x1080`) read `notes` and the measured
   `width`/`height` from the payload — if the provider snapped, say so; never claim
   unsnapped pixels.
 - **Reference images need a model that accepts image input.** Passing `--ref` to a
@@ -223,7 +223,7 @@ accepted; never report an ungated image as a pass.
   or the environment. Export one of the provider keys (matrix:
   `docs/image-pipeline.md`), configure `hermes tools` → Image Generation when Hermes is
   your agent, or pass `--provider X --api-key <key>` (add `--base-url` for a custom
-  OpenAI-compatible endpoint). `hg_image.py list` shows what's reachable and why.
+  OpenAI-compatible endpoint). `imagegen.py list` shows what's reachable and why.
   Note: OAuth-only backends like `openai-codex` exist in Hermes mode only.
 - **Provider available but call fails** (401/429/API error) — run again with
   `--fallback` so the next credentialed backend takes over; if the user named a provider

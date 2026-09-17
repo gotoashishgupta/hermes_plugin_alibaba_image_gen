@@ -14,7 +14,7 @@ from imagegen import cli
 
 
 def run(argv):
-    return cli.main(["hg_image.py", *argv])
+    return cli.main(["imagegen.py", *argv])
 
 
 def test_no_credentialed_provider_exits_2():

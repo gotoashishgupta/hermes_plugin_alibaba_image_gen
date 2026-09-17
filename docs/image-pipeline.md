@@ -1,11 +1,11 @@
 # image-pipeline — driver & provider routing
 
-The skill's generation driver is `skills/image-pipeline/scripts/hg_image.py` (+
+The skill's generation driver is `skills/image-pipeline/scripts/imagegen.py` (+
 the `imagegen/` package). It is **harness-independent**: stdlib-only Python 3.11+,
 no packages to install. Hermes is optional acceleration, never a requirement.
 
 This document is the operational reference: routing modes, the provider/env
-matrix, endpoint semantics, and behavior changes vs the pre-refactor script.
+matrix, endpoint semantics, and the payload contract.
 
 ## Routing modes
 
@@ -15,7 +15,7 @@ Hermes repo found
    registry providers credentialed ............... mode 1  route=hermes-registry
    plugin reachable, keys from env only .......... mode 2  credential_source=env
    (repo found but THIS python can't import hermes deps → the script re-execs
-    once into <repo>/venv/bin/python, loop-guarded by HG_IMAGE_NO_REEXEC=1;
+    once into <repo>/venv/bin/python, loop-guarded by IMAGEGEN_NO_REEXEC=1;
     if no venv exists it continues standalone with a stderr warning — it never
     hard-fails because Hermes is absent)
 No Hermes ........................................... mode 3  standalone adapters
@@ -43,7 +43,7 @@ by the presence of `agent/image_gen_registry.py`. `~/.hermes/.env` is loaded
 Custom endpoint: `--provider <any-other-name> --api-key K --base-url U [--endpoint E]`
 synthesizes an OpenAI-compatible adapter named after the provider.
 
-Cache/materialization: images land in `$HG_IMAGE_CACHE` (default
+Cache/materialization: images land in `$IMAGEGEN_CACHE` (default
 `~/.cache/image-pipeline/`) and are copied to `--out`; provider URLs (fal media links
 expire) are always downloaded before the payload is emitted.
 
@@ -53,7 +53,7 @@ expire) are always downloaded before the payload is emitted.
 - `--size WxH` — exact-canvas request (deck work, e.g. `1920x1080`). Wins over
   `--aspect` for the reported ratio. Only `fal` `image_size` models accept arbitrary
   pixels; everything else snaps to its nearest supported size/ratio. The payload
-  carries `size_requested` + `size_note`, and `width`/`height` are MEASURED from the
+  carries `size_requested` + `notes`, and `width`/`height` are MEASURED from the
   delivered file (never trusted from provider metadata) — a >5% ratio deviation gets
   a note. Deck consumers crop-to-fill/upscale from the measured dims; never stretch.
 
@@ -61,29 +61,22 @@ expire) are always downloaded before the payload is emitted.
 
 - `0` success
 - `1` generation attempted and failed — the envelope JSON goes to stderr
-- `2` bad usage / no usable provider (was `1` before the refactor; the old
-  docstring always promised 2)
+- `2` bad usage / no usable provider
 
-## Payload (back-compatible superset)
+## Payload contract
 
-Old keys unchanged: `success, provider, model, prompt, aspect_ratio, image,
-references` + optional `plan, note, seed, width, height`. New additive keys:
-`route` (`hermes-registry|standalone|direct`), `credential_source`
-(`hermes-ladder|env|cli`), `size_requested`, `size_note`, `attempts[]` (failed
-backends before the winner, `--fallback` runs only). `provider`/`model` always name
-what ACTUALLY produced the image.
+`success, provider, model, prompt, aspect, route, credential_source, image,
+references` + optional `plan`, `notes[]`, `seed`, `width`, `height`,
+`size_requested`, `attempts[]` (failed backends before the winner, `--fallback`
+runs only); on failure also `error`/`error_type`. `route` ∈
+`hermes-registry|standalone|direct`; `credential_source` ∈
+`hermes-ladder|env|cli`. `provider`/`model` always name what ACTUALLY produced
+the image; `width`/`height` are measured from the delivered file.
 
-## Behavior changes vs the pre-refactor script
-
-1. No Hermes repo no longer aborts — the standalone adapters answer with env keys.
-2. `--base-url` alone no longer silently rewrites the Token Plan host for EVERY
-   provider; it still does (with a stderr note) for `--provider alibaba`/no provider
-   for one release, then retires. Named providers get it per-backend.
-3. All `ALIBABA_*` special-casing moved into the alibaba adapter; the CLI is generic.
-4. Registry access uses the public `list_providers()` API (was private
-   `_registry.merged()`).
-5. Exit 2 for the no-provider/usage class (was exit 1).
-6. `--json` payloads gained the additive keys above; nothing removed or renamed.
+`--base-url`/`--endpoint` always target the NAMED `--provider` (an unknown name
+plus `--base-url` synthesizes an OpenAI-compatible backend); there is no global
+host override — Token Plan host pinning lives in the alibaba adapter's own
+env ladder (`ALIBABA_TOKEN_PLAN_BASE_URL`).
 
 ## Drift contract
 
@@ -95,10 +88,10 @@ change either, check the other and record it here; the mirrored response fixture
 
 ## Testing
 
-- `uv run --locked --group dev pytest -q tests/image_pipeline` (83 tests, faked
+- `uv run --locked --group dev pytest -q tests/image_pipeline` (89 tests, faked
   network only, no Hermes anywhere)
 - `tests/image_pipeline/test_purity.py` proves stdlib-only imports in a fresh `-I`
   interpreter; `test_leaf_parity.py` pins the hermes leaf's scripts copy to this tree.
 - Live verification (spends credits; run consciously):
-  `python3 skills/image-pipeline/scripts/hg_image.py list` (re-exec exhibit),
+  `python3 skills/image-pipeline/scripts/imagegen.py list` (re-exec exhibit),
   `... generate --mode standalone --provider alibaba --prompt "..." --json` etc.

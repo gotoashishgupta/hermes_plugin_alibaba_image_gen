@@ -19,13 +19,13 @@ What is Hermes-specific is everything below the prompt.
 
 ## Provider routing (Hermes first, always explicit)
 
-`scripts/hg_image.py` runs on the Hermes venv python and drives Hermes' own
+`scripts/imagegen.py` runs on the Hermes venv python and drives Hermes' own
 image_gen registry:
 
 ```bash
 PY=${HERMES_AGENT_REPO:-$HOME/.hermes/hermes-agent}/venv/bin/python
-"$PY" "$(dirname <this SKILL.md>)/scripts/hg_image.py" list   # which providers are credentialed (OK rows)
-"$PY" "$(dirname <this SKILL.md>)/scripts/hg_image.py" generate \
+"$PY" "$(dirname <this SKILL.md>)/scripts/imagegen.py" list   # which providers are credentialed (OK rows)
+"$PY" "$(dirname <this SKILL.md>)/scripts/imagegen.py" generate \
   --prompt "<concept prompt>" [--provider <name>] [--model <id>] \
   [--aspect landscape|square|portrait] [--size WxH] [--ref <path>]... \
   --out "<workspace>/attempt-N.png" --json [--fallback]
@@ -58,7 +58,7 @@ login that answered.
 
 - For PowerPoint/slide callers: take the deck's brand DNA as stage-1 input but
   never skip stages 2 and 4; request the canvas with `--size 1920x1080` (or the
-  deck's own pixels), treat `size_note` + measured `width`/`height` as what
+  deck's own pixels), treat `notes` + measured `width`/`height` as what
   actually arrived, place crop-to-fill — never stretch;
   `<deck>/art/slide-<NN>-attempt-<N>.png`; the 4.0 gate is not negotiable for
   placeholders.

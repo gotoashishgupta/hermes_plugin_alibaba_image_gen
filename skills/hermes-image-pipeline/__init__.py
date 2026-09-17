@@ -1,7 +1,7 @@
 """hermes-image-pipeline — registers the bundled SKILL.md as a plugin skill.
 
 Loadable in Hermes as ``hermes-image-pipeline:image-pipeline`` (explicit loads,
-like every plugin skill). The driver script lives at ``scripts/hg_image.py``
+like every plugin skill). The driver script lives at ``scripts/imagegen.py``
 next to this file and is a byte-identical copy of the generic skill's scripts
 (enforced by tests/image_pipeline/test_leaf_parity.py — leaves install
 standalone, so no import sharing is possible).

@@ -15,7 +15,7 @@ user brief (text) + optional reference image
 2. generate_design_concepts ────────► concepts[] {title, description, prompt}
         │
         ▼
-3. generate_idea_image ─────────────► image file  (hg_image.py)
+3. generate_idea_image ─────────────► image file  (imagegen.py)
         │
         ▼
 4. evaluate_image ─────────────────► scorecard {scores, overall, pass, feedback}
@@ -110,7 +110,7 @@ difference must not be allowed to make the decision.
 
 ## 3. generate_idea_image
 
-Run the chosen concept's `prompt` through `hg_image.py`. Locate the skill from wherever it
+Run the chosen concept's `prompt` through `imagegen.py`. Locate the skill from wherever it
 is installed in the current harness (it is not always under `~/.claude/`); any `python3`
 works — the script re-execs into the Hermes venv itself when a hermes-agent checkout is
 reachable and configured:
@@ -118,7 +118,7 @@ reachable and configured:
 ```bash
 SKILL_DIR="${CLAUDE_SKILL_DIR:-<dir containing SKILL.md>}"
 PY=python3
-"$PY" "$SKILL_DIR/scripts/hg_image.py" generate \
+"$PY" "$SKILL_DIR/scripts/imagegen.py" generate \
   --prompt "<concept prompt>" \
   [--provider <name>] [--model <id>] [--aspect landscape|square|portrait] [--size WxH] \
   [--ref <reference image path>]... \
@@ -147,8 +147,8 @@ Provider/model policy (the user was explicit):
   provider name plus `--base-url` (optionally `--endpoint`) targets a custom
   OpenAI-compatible server directly.
 - For slide/deck artwork, request the canvas with `--size 1920x1080` (or the deck's own
-  pixels) and treat `size_note` + measured `width`/`height` as the delivered truth.
-- Use `hg_image.py list` first when you need to see which providers are credentialed
+  pixels) and treat the payload's `notes` + measured `width`/`height` as the delivered truth.
+- Use `imagegen.py list` first when you need to see which providers are credentialed
   ("OK" rows only; `fal` and non-credentialed providers are marked `--`).
 
 Read the `--json` result. On `"success": true` the image is at `payload.image` — note the

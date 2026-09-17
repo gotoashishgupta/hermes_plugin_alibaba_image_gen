@@ -43,13 +43,6 @@ def test_requested_not_credentialed_raises(monkeypatch):
         routing.build_chain(req(), mode="standalone", requested="gemini")
 
 
-def test_exclusion_respected(monkeypatch):
-    monkeypatch.setenv("FAL_KEY", "f")
-    with pytest.raises(UsageError) as e:
-        routing.build_chain(req(), mode="standalone", requested="fal", excluded={"fal"})
-    assert "excluded by policy" in str(e.value)
-
-
 def test_hermes_mode_without_repo_raises(monkeypatch, tmp_path):
     with pytest.raises(UsageError) as e:
         routing.build_chain(req(), mode="hermes", requested=None)
@@ -60,8 +53,7 @@ def test_credential_source_classification(monkeypatch, tmp_path):
     # config names the provider → hermes-ladder; env-only → env; cli key → cli
     class FakeBackend:
         name = "openai-codex"
-        def key_env(self):
-            return None
+        key_envs = ()  # OAuth: declares none
     cfg = tmp_path / ".hermes"
     cfg.mkdir(parents=True, exist_ok=True)
     (cfg / "config.yaml").write_text("image_gen:\n  provider: openai-codex\n")
@@ -70,8 +62,7 @@ def test_credential_source_classification(monkeypatch, tmp_path):
 
     class FakeTP:
         name = "alibaba"
-        def key_env(self):
-            return "ALIBABA_TOKEN_PLAN_API_KEY"
+        key_envs = ("ALIBABA_TOKEN_PLAN_API_KEY",)
     monkeypatch.setenv("ALIBABA_TOKEN_PLAN_API_KEY", "tp")
     assert routing.credential_source_for(FakeTP(), req()) == "env"
     assert routing.credential_source_for(FakeTP(), GenRequest(prompt="p", api_key="k")) == "cli"
@@ -79,8 +70,8 @@ def test_credential_source_classification(monkeypatch, tmp_path):
 
 def test_reexec_guard_skips_standalone_and_pinned():
     # no repo anywhere: must be a silent no-op, never exec
-    routing.maybe_reexec_into_venv(["hg_image.py", "list"], mode="standalone", has_api_key=False)
-    routing.maybe_reexec_into_venv(["hg_image.py", "list"], mode="auto", has_api_key=True)
+    routing.maybe_reexec_into_venv(["imagegen.py", "list"], mode="standalone", has_api_key=False)
+    routing.maybe_reexec_into_venv(["imagegen.py", "list"], mode="auto", has_api_key=True)
 
 
 def test_reexec_executes_once_with_fake_venv(monkeypatch, tmp_path):
@@ -96,5 +87,5 @@ def test_reexec_executes_once_with_fake_venv(monkeypatch, tmp_path):
     import os
     monkeypatch.setattr(os, "execve", lambda *a, **k: (_ for _ in ()).throw(OSError("denied")))
     # execve raising → warning + continue (never die)
-    routing.maybe_reexec_into_venv([str(tmp_path / "hg_image.py"), "list"],
+    routing.maybe_reexec_into_venv([str(tmp_path / "imagegen.py"), "list"],
                                    mode="auto", has_api_key=False)

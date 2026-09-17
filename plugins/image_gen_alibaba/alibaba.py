@@ -410,7 +410,7 @@ class AlibabaImageGenProvider(ImageGenProvider):
                 },
             ],
             # NOT env_vars: the hermes tools picker prompts every env_vars entry as
-            # mandatory. hg_image.py's availability gate merges both lists.
+            # mandatory. imagegen.py's availability gate merges both lists.
             "optional_env_vars": [
                 {
                     "key": "ALIBABA_API_KEY",

@@ -31,7 +31,7 @@ def test_package_imports_with_bare_interpreter():
 
 
 def test_entrypoint_help_runs_without_hermes():
-    proc = subprocess.run([sys.executable, "-I", str(SCRIPTS / "hg_image.py"), "--help"],
+    proc = subprocess.run([sys.executable, "-I", str(SCRIPTS / "imagegen.py"), "--help"],
                           capture_output=True, text=True, timeout=60,
                           env={"PATH": "/usr/bin:/bin", "HOME": "/nonexistent-home"})
     assert proc.returncode == 0, proc.stdout + proc.stderr

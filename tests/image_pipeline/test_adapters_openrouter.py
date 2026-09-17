@@ -48,7 +48,7 @@ def test_size_snaps_to_ratio_enum(monkeypatch, net):
     r = OpenRouterAdapter().generate(
         req(model="openai/gpt-image-2", size=(1100, 1000)))
     assert net["calls"][0]["payload"]["aspect_ratio"] == "1:1"
-    assert "snapped" in (r.note or "")
+    assert any("snapped" in n for n in r.notes)
 
 
 def test_exact_169_size_no_snap_note(monkeypatch, net):

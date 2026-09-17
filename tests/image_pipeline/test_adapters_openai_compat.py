@@ -24,7 +24,7 @@ def test_size_snaps_to_fixed_three(monkeypatch, net):
     net["queue"].append((openai_b64_body(), None))
     r = OpenAICompatAdapter().generate(req(size=(1920, 1080)))
     assert net["calls"][0]["payload"]["size"] == "1536x1024"
-    assert r.aspect_ratio == "landscape" and "snapped" in r.note
+    assert r.aspect == "landscape" and any("snapped" in n for n in r.notes)
     assert r.size_requested == "1920x1080"
 
 

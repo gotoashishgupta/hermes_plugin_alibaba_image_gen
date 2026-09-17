@@ -41,7 +41,7 @@ def test_exact_size_uses_custom_image_size(monkeypatch, net):
                     (fal_result(), None)]
     r = FalAdapter().generate(req(size=(1920, 1080)))
     assert net["calls"][0]["payload"]["image_size"] == {"width": 1920, "height": 1080}
-    assert "exact 1920x1080" in r.note
+    assert any("exact 1920x1080" in n for n in r.notes)
 
 
 def test_aspect_ratio_style_model_snaps(monkeypatch, net):

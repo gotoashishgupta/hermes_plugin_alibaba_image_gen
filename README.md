@@ -68,7 +68,7 @@ hermes config | grep "(from OpenBao)"
 Single toolchain at root (`package=false`):
 
 ```bash
-uv run --locked --group dev pytest -q                 # all extensions (255 tests: 90 alibaba + 78 openbao + 87 image_pipeline)
+uv run --locked --group dev pytest -q                 # all extensions (257 tests: 90 alibaba + 78 openbao + 89 image_pipeline)
 uv run --locked --group dev pytest -q tests/image_gen_alibaba
 uv run --locked --group dev pytest -q tests/openbao
 uv run --locked --group dev pytest -q tests/image_pipeline

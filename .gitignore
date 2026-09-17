@@ -1692,3 +1692,11 @@ graphify-out/
 
 # post-refactor acceptance eval artifacts (local only)
 eval-runs/
+
+# re-include skill driver trees (template [Ss]cripts rule above would swallow them)
+!skills/*/scripts/
+!skills/*/scripts/**
+
+# ...but bytecode stays ignored inside re-included skill scripts
+skills/*/scripts/__pycache__/
+skills/*/scripts/**/__pycache__/

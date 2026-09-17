@@ -34,8 +34,8 @@ CREDENTIAL_ENVS = (
     "OPENAI_API_KEY", "OPENAI_BASE_URL", "OPENAI_IMAGE_MODEL",
     "OPENROUTER_API_KEY", "OPENROUTER_IMAGE_MODEL", "OPENROUTER_BASE_URL",
     "FAL_KEY", "FAL_IMAGE_MODEL", "GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI_IMAGE_MODEL",
-    "HERMES_AGENT_REPO", "HERMES_VENV_PY", "HERMES_HOME", "HG_IMAGE_NO_REEXEC",
-    "HG_IMAGE_CACHE",
+    "HERMES_AGENT_REPO", "HERMES_VENV_PY", "HERMES_HOME", "IMAGEGEN_NO_REEXEC",
+    "IMAGEGEN_CACHE",
 )
 
 
@@ -45,7 +45,7 @@ def clean_env(tmp_path, monkeypatch):
     for var in CREDENTIAL_ENVS:
         monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("HOME", str(tmp_path))
-    monkeypatch.setenv("HG_IMAGE_CACHE", str(tmp_path / "hg-cache"))
+    monkeypatch.setenv("IMAGEGEN_CACHE", str(tmp_path / "hg-cache"))
     from imagegen import hermes_mode
     monkeypatch.setattr(hermes_mode, "DEFAULT_HERMES_REPO", tmp_path / ".hermes" / "hermes-agent")
     monkeypatch.setattr(hermes_mode, "DEFAULT_HERMES_HOME", tmp_path / ".hermes")

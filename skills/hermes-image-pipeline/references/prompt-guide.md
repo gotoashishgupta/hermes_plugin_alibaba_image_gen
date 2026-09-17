@@ -259,7 +259,7 @@ medium/technique vocabulary. Choose one register and stay in it.
 
 The provider and model are chosen at generation time, so a prompt that works on one
 model may need a small nudge on another. The entries below describe *families*, by way of
-example — discover what the current runtime actually offers (`hg_image.py list --models`)
+example — discover what the current runtime actually offers (`imagegen.py list --models`)
 and read them as the kind of difference to expect between model families, not as a list
 of supported models.
 

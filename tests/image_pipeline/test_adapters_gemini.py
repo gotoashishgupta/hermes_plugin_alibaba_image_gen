@@ -30,7 +30,7 @@ def test_delivered_ratio_mismatch_is_measured_and_noted(monkeypatch, net):
     net["queue"].append((gemini_body(make_png(1024, 1024)), None))  # asked 16:9, got 1:1
     r = GeminiAdapter().generate(req(size=(1920, 1080)))
     assert (r.width, r.height) == (1024, 1024)
-    assert r.size_requested == "1920x1080" and "deviates >5%" in r.note
+    assert r.size_requested == "1920x1080" and any("deviates >5%" in n for n in r.notes)
 
 
 def test_refs_inlined(monkeypatch, net, tmp_path):

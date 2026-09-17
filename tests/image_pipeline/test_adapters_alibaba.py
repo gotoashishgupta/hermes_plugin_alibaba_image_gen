@@ -59,7 +59,7 @@ def test_401_on_tp_intl_advances_to_tp_cn(monkeypatch, net):
     assert r.success and r.plan == "alibaba-token-plan-cn"
     assert [c["url"] for c in net["calls"]] == [TP + "/chat/completions",
                                                 TOKEN_CN + "/chat/completions"]
-    assert "logins tried: alibaba-token-plan, alibaba-token-plan-cn" in r.note
+    assert any("logins tried: alibaba-token-plan, alibaba-token-plan-cn" in n for n in r.notes)
 
 
 def test_model_not_found_on_verified_plan_does_not_advance(monkeypatch, net):
@@ -98,7 +98,7 @@ def test_refs_inlined_on_chat_surface(monkeypatch, net, tmp_path):
     assert r.success
     content = net["calls"][0]["payload"]["messages"][0]["content"]
     assert content[1]["type"] == "image" and content[1]["image"].startswith("data:image/png;base64,")
-    assert "wan ignores size when reference images are supplied" in (r.note or "")
+    assert any("wan ignores size" in n for n in r.notes)
 
 
 def test_401_full_ladder_walks_cn_then_payg(monkeypatch, net):
@@ -110,7 +110,7 @@ def test_401_full_ladder_walks_cn_then_payg(monkeypatch, net):
         (token_plan_body(), None),                                     # PAYG answers
     ]
     r = AlibabaAdapter().generate(req())
-    assert r.success and r.plan == "alibaba" and "logins tried" in r.note
+    assert r.success and r.plan == "alibaba" and any("logins tried" in n for n in r.notes)
 
 
 def test_timeout_advances_then_exhausts(monkeypatch, net):

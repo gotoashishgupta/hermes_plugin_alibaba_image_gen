@@ -1,20 +1,19 @@
-"""Back-compat parity + the honesty rules the skill depends on:
-payload keys, fallback truthfulness, attempts[], --out copy, text mode shape."""
+"""CLI contract: payload shape, fallback truthfulness, attempts[], --out copy,
+list shape, --base-url/--endpoint provider-pinning rule."""
 
 from __future__ import annotations
 
 import json
-from pathlib import Path
 
 from imagegen import cli
 from image_pipeline.helpers import http_failure, openai_b64_body, PNG_1PX
 
 
 def run(argv):
-    return cli.main(["hg_image.py", *argv])
+    return cli.main(["imagegen.py", *argv])
 
 
-def test_generate_json_payload_legacy_keys(monkeypatch, net, capsys, tmp_path):
+def test_generate_json_payload_contract(monkeypatch, net, capsys, tmp_path):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-oai")
     net["queue"].append((openai_b64_body(), None))
     out = tmp_path / "attempt-1.png"
@@ -22,12 +21,12 @@ def test_generate_json_payload_legacy_keys(monkeypatch, net, capsys, tmp_path):
               "--mode", "standalone", "--out", str(out), "--json"])
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
-    for key in ("success", "provider", "model", "prompt", "aspect_ratio", "image",
-                "references"):
-        assert key in payload, key
-    assert payload["provider"] == "openai" and payload["success"] is True
+    assert payload["success"] is True and payload["provider"] == "openai"
+    assert payload["prompt"] == "a red fox" and payload["aspect"] == "landscape"
+    assert payload["references"] == [] and payload["route"] == "standalone"
+    assert payload["credential_source"] == "env"
     assert payload["image"] == str(out.resolve()) and out.read_bytes() == PNG_1PX
-    assert payload["route"] == "standalone" and payload["credential_source"] == "env"
+    assert payload["width"] == 1 and payload["height"] == 1  # measured
 
 
 def test_text_mode_prints_only_the_path(monkeypatch, net, capsys):
@@ -69,26 +68,30 @@ def test_no_fallback_single_attempt(monkeypatch, net, capsys):
     assert len(net["calls"]) == 1  # no silent extra spend
 
 
-def test_list_json_shape_back_compat_and_modes(monkeypatch, capsys):
+def test_list_json_shape(monkeypatch, capsys):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-oai")
     rc = run(["list", "--mode", "standalone", "--json"])
     assert rc == 0
     doc = json.loads(capsys.readouterr().out)
-    assert set(doc) >= {"providers", "excluded", "modes"}
+    assert set(doc) == {"providers", "modes"}
     row = next(r for r in doc["providers"] if r["provider"] == "openai")
-    assert set(row) == {"provider", "kind", "available", "key_env", "default_model", "models"}
-    assert row["available"] is True and row["key_env"] == "OPENAI_API_KEY"
+    assert set(row) == {"provider", "kind", "available", "key_envs", "default_model", "models"}
+    assert row["available"] is True and row["key_envs"] == ["OPENAI_API_KEY"]
     assert "hermes" in doc["modes"] and doc["modes"]["standalone_env_credentialed"] == ["openai"]
 
 
-def test_legacy_base_url_shim_targets_token_plan(monkeypatch, net, capsys):
-    monkeypatch.setenv("ALIBABA_TOKEN_PLAN_API_KEY", "tp")
-    rc = run(["generate", "--prompt", "x", "--base-url", "https://tp.internal/v1",
+def test_bare_base_url_requires_provider(monkeypatch, capsys):
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-oai")
+    rc = run(["generate", "--prompt", "x", "--base-url", "https://gw.test/v1",
               "--mode", "standalone", "--json"])
-    import os
-    assert os.environ.get("ALIBABA_TOKEN_PLAN_BASE_URL") == "https://tp.internal/v1"
-    err = capsys.readouterr().err
-    assert rc == 1 and "--base-url without --api-key" in err  # shim announced; no net scripted
+    assert rc == 2
+    assert "require --provider" in capsys.readouterr().err
+
+
+def test_bare_endpoint_requires_provider(capsys):
+    rc = run(["generate", "--prompt", "x", "--endpoint", "/chat/completions",
+              "--mode", "standalone", "--json"])
+    assert rc == 2
 
 
 def test_endpoint_flag_reaches_named_provider(monkeypatch, net, capsys):
@@ -103,6 +106,19 @@ def test_endpoint_flag_reaches_named_provider(monkeypatch, net, capsys):
     assert payload["provider"] == "alibaba" and payload["plan"] == "alibaba-token-plan"
 
 
+def test_base_url_pins_named_provider(monkeypatch, net):
+    """--provider openai --base-url U: the URL targets THAT backend, no env rewriting."""
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-oai")
+    net["queue"].append((openai_b64_body(), None))
+    rc = run(["generate", "--prompt", "x", "--provider", "openai",
+              "--base-url", "https://gw.internal/v1", "--mode", "standalone", "--json"])
+    assert rc == 0
+    assert net["calls"][0]["url"] == "https://gw.internal/v1/images/generations"
+    import os
+    assert "GW.INTERNAL" not in os.environ.get("ALIBABA_TOKEN_PLAN_BASE_URL", "")
+    assert os.environ.get("ALIBABA_TOKEN_PLAN_BASE_URL") is None
+
+
 def test_size_flag_reports_snap_trail(monkeypatch, net, capsys):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-oai")
     net["queue"].append((openai_b64_body(), None))
@@ -110,4 +126,5 @@ def test_size_flag_reports_snap_trail(monkeypatch, net, capsys):
               "--mode", "standalone", "--json"])
     payload = json.loads(capsys.readouterr().out)
     assert payload["size_requested"] == "1920x1080"
-    assert payload["aspect_ratio"] == "landscape" and "snapped" in payload["note"]
+    assert payload["aspect"] == "landscape"
+    assert any("snapped" in n for n in payload["notes"])
