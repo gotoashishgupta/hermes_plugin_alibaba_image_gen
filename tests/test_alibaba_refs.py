@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 
 from conftest import PNG_BYTES, token_plan_body
-from hermes_plugin_alibaba_image_gen.alibaba import AlibabaImageGenProvider
+from alibaba import AlibabaImageGenProvider
 
 
 def make_provider():

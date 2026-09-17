@@ -6,7 +6,7 @@ import sys
 
 import pytest
 
-from hermes_plugin_alibaba_image_gen import alibaba
+import alibaba
 
 
 @pytest.fixture

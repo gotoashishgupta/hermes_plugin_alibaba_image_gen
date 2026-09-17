@@ -15,6 +15,10 @@ _REPO = Path(os.environ.get("HERMES_AGENT_REPO", str(Path.home() / ".hermes" / "
 if (_REPO / "agent" / "image_gen_provider.py").is_file() and str(_REPO) not in sys.path:
     sys.path.insert(0, str(_REPO))
 
+_ROOT = Path(__file__).resolve().parents[1]
+if str(_ROOT) not in sys.path:
+    sys.path.insert(0, str(_ROOT))
+
 CREDENTIAL_ENVS = (
     "ALIBABA_TOKEN_PLAN_API_KEY",
     "ALIBABA_TOKEN_PLAN_CN_API_KEY",
@@ -104,7 +108,7 @@ def resolver_plans(monkeypatch):
 @pytest.fixture
 def posted(monkeypatch):
     """Capture post_json calls; each call pops the next queued (body, failure) pair."""
-    from hermes_plugin_alibaba_image_gen import alibaba
+    import alibaba
 
     calls = []
     box = {"queue": [], "calls": calls}
@@ -120,7 +124,7 @@ def posted(monkeypatch):
 @pytest.fixture
 def saved(monkeypatch):
     """Intercept image materialization; record how it was called."""
-    from hermes_plugin_alibaba_image_gen import alibaba
+    import alibaba
 
     box = {}
 

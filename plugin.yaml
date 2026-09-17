@@ -3,5 +3,5 @@ version: 0.1.0
 description: Alibaba unified image gen (Token Plan intl/CN + DashScope PAYG intl/CN)
 author: Ashish Gupta
 kind: backend
-requires_env:
-  - ALIBABA_TOKEN_PLAN_API_KEY
+python_dependencies:
+  - "requests>=2.31,<3"

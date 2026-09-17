@@ -1686,3 +1686,6 @@ gradle-app.setting
 
 # Claude Code session artifacts
 latest
+
+# graphify generated outputs
+graphify-out/

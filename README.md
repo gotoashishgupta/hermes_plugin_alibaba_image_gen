@@ -12,10 +12,12 @@ Default model: `wan2.7-image` (~15s). Also available: `wan2.7-image-pro` (~40s).
 
 ## Prerequisites
 
-- [Hermes agent](https://github.com/nicepkg/hermes) installed with its venv at `~/.hermes/hermes-agent/`
-- Python >= 3.11
-- An [Alibaba Model Studio](https://bailian.console.aliyun.com) account (Token Plan or DashScope PAYG)
-- [`uv`](https://docs.astral.sh/uv/) (recommended) or pip
+- [Hermes Agent](https://github.com/NousResearch/hermes-agent) with native image-generation provider plugin support
+- Python >= 3.11 in the Hermes runtime
+- An [Alibaba Model Studio](https://bailian.console.aliyun.com) account (Token Plan or DashScope PAYG), or a custom compatible endpoint
+- `requests>=2.31,<3` in the Hermes environment; Pillow is optional for reference-image recompression
+
+Hermes reports missing `python_dependencies` from the manifest but does not install them automatically.
 
 ---
 
@@ -24,18 +26,27 @@ Default model: `wan2.7-image` (~15s). Also available: `wan2.7-image-pro` (~40s).
 ### 1. Install the plugin
 
 ```bash
-cd hermes_plugin_alibaba_image_gen
-uv pip install --python ~/.hermes/hermes-agent/venv/bin/python3 -e .
+hermes plugins install <org>/hermes_plugin_alibaba_image_gen --enable
 ```
 
-### 2. Enable in Hermes
+Replace `<org>` with the GitHub owner hosting this repository. The published default
+branch must contain the root `plugin.yaml`, `__init__.py`, and `alibaba.py`.
+Hermes installs the repository at `$HERMES_HOME/plugins/alibaba/`
+(default `~/.hermes/plugins/alibaba/`) and enables plugin ID `alibaba`.
+No pip installation, subdirectory fragment, relocation script, or manual copy is needed.
+
+### 2. Verify discovery
 
 ```bash
-~/.hermes/hermes-agent/venv/bin/hermes plugins enable alibaba-imggen --no-allow-tool-override
+hermes plugins list
+hermes plugins doctor alibaba --ci
 ```
 
-This registers the plugin — `alibaba-imggen` becomes a row in `hermes tools` → Image
-Generation.
+If installed without `--enable`, run `hermes plugins enable alibaba`.
+Restart running Hermes sessions or the gateway after installation.
+The plugin registers provider ID `alibaba` for `hermes tools` → Image Generation.
+Registration does not require a Token Plan key: configure any supported credential
+source below. Missing credentials make generation unavailable, not plugin discovery.
 
 ### 3. Configure credentials
 
@@ -68,23 +79,32 @@ image_gen:
   provider: alibaba
 ```
 
-Or invoke directly (no config needed):
-```bash
-hg_image.py generate --provider alibaba --prompt "a red fox in a forest"
-```
+Provider selection is via `image_gen.provider: alibaba` as above; no separate CLI invocation is needed.
 
 ### 5. Verify it works
 
+Use `hermes tools` → Image Generation → Alibaba to select the provider and model.
+Then ask Hermes to generate an image. This uses your configured credentials and may
+incur provider charges; `hermes plugins doctor alibaba --ci` only checks plugin health.
+
+### Updating and migrating
+
 ```bash
-uv run --python ~/.hermes/hermes-agent/venv/bin/python3 -c "
-from hermes_plugin_alibaba_image_gen.alibaba import AlibabaImageGenProvider
-p = AlibabaImageGenProvider()
-print('Available:', p.is_available())
-print('Models:', [m['id'] for m in p.list_models()])
-"
+hermes plugins update alibaba
 ```
 
-If `Available: True`, you're ready to generate.
+For an old pip installation, disable `alibaba-imggen` and uninstall
+`hermes-plugin-alibaba-image-gen` from the same Python environment used by Hermes
+before enabling the native plugin. This avoids two plugins registering provider
+`alibaba`. Preserve existing credentials and `image_gen` configuration.
+
+```bash
+hermes plugins disable alibaba-imggen
+uv pip uninstall --python ~/.hermes/hermes-agent/venv/bin/python3 hermes-plugin-alibaba-image-gen
+```
+
+Adjust the Python path for your Hermes installation. Pip distribution and the old
+`hermes_plugin_alibaba_image_gen` import path are no longer supported.
 
 ---
 
@@ -94,10 +114,10 @@ If `Available: True`, you're ready to generate.
 |---------|--------|
 | **Auto plan selection** | Token Plan intl → Token Plan CN → PAYG intl → PAYG CN → custom. First key found wins. |
 | **Two payload surfaces** | Default `/images/generations` (OpenAI standard). Override to `/chat/completions` for Token Plan-native deploys. |
-| **Reference images** | Up to 4 refs, auto-inlined as base64 (recompressed >3MB). Aspect adopted from ref. |
-| **Model catalog** | `wan2.7-image` (default, ~15s) and `wan2.7-image-pro` (~40s). Unknown ids pass through. |
+| **Reference images** | Up to 4 refs (`MAX_REFERENCES=4`), auto-inlined as base64 data URIs (local files >3 MB recompressed via JPEG downscale loop; URLs/data-URIs pass through). `size` is ignored when refs are present. |
+| **Model catalog** | `wan2.7-image` (default, ~15s) and `wan2.7-image-pro` (~40s). Unknown ids pass through. Resolution: `model=` kwarg → `ALIBABA_IMAGE_MODEL` env → `image_gen.alibaba.model` (scoped) → `image_gen.model` (top-level) → `wan2.7-image`. |
 | **Plan advancement** | 401/403/429/5xx/timeout → next plan. Bad payload/model → stop immediately. |
-| **One-shot kwargs** | `api_key=` / `base_url=` bypass the ladder entirely (used by `hg_image.py --api-key`). |
+| **One-shot kwargs** | `api_key=` / `base_url=` bypass the ladder entirely for a single `generate()` call. |
 | **Never raises** | `generate()` catches all exceptions → `error_response` the LLM can explain. |
 | **Response parsing** | Handles `data[].url`, `data[].b64_json`, `output.choices`, `message.images[]`. |
 | **Seed reporting** | Extracts `actual_seed`, `output_W`, `output_H` from Token Plan debug info. |
@@ -236,8 +256,7 @@ The result always reports `plan` (which plan answered) and `plans_tried` (the fu
 - **Reference images require `/chat/completions`** — the `/images/generations` surface has no
   image input. Use `ALIBABA_IMAGE_ENDPOINT=/chat/completions` (applies to all plans), or omit refs.
 - **Last-writer-wins** — another plugin registering provider name `alibaba` replaces this one.
-  That's the supported override surface; see `packaging/alibaba-dir-install/` for the
-  directory-install manifest.
+  Keep only the native `alibaba` installation enabled; the canonical manifest is `plugin.yaml`.
 - **Picker shows one prompt** — `hermes tools` only asks for `ALIBABA_TOKEN_PLAN_API_KEY`.
   PAYG users set `DASHSCOPE_API_KEY` out of band; the ladder picks it up.
 - **`generate()` never raises** — all errors return an `error_response` dict the LLM can explain.
@@ -246,10 +265,22 @@ The result always reports `plan` (which plan answered) and `plans_tried` (the fu
 
 ## Testing
 
+The repository root is the plugin: `__init__.py` registers the provider implemented
+once in `alibaba.py`. `pyproject.toml` and `uv.lock` are development-only, not a pip package.
+Tests require a Hermes source checkout at `~/.hermes/hermes-agent`, or set
+`HERMES_AGENT_REPO` to its path. The local uv development interpreter is selected by
+`.python-version`; tests can also run using Hermes' Python with pytest installed.
+
 ```bash
-uv run --python ~/.hermes/hermes-agent/venv/bin/python3 -m pytest tests/
+uv run --locked --group dev python -m pytest tests/
 ```
 
-83 tests covering: credential ladder order, payload shapes, response parsing, reference
-images, plan advancement, env/config fallback, endpoint overrides, and the full generate
-happy path. Tests run against mocked HTTP — no live API calls.
+Coverage includes credential resolution, payloads, response parsing, reference images,
+plan advancement, endpoint overrides, native manifest discovery, registration without
+pip entry points, and installer destination/metadata. HTTP and Git cloning are mocked;
+no live API calls or production Hermes configuration changes occur.
+
+Project-local discovery is optional for development only: place a link to this checkout
+at `<workspace>/.hermes/plugins/alibaba`, launch Hermes from that workspace with
+`HERMES_ENABLE_PROJECT_PLUGINS=1`, and enable `alibaba`. The canonical distribution path
+remains `hermes plugins install <org>/hermes_plugin_alibaba_image_gen --enable`.
