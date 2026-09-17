@@ -91,9 +91,14 @@ In `~/.hermes/config.yaml`:
 ```yaml
 image_gen:
   provider: alibaba
+  alibaba:
+    endpoint: /chat/completions  # required for Token Plan (verified surface); PAYG/custom may use default /images/generations
 ```
 
 Provider selection is via `image_gen.provider: alibaba` as above; no separate CLI invocation is needed.
+Persist via `hermes config set image_gen.alibaba.endpoint /chat/completions` or `export ALIBABA_IMAGE_ENDPOINT=/chat/completions` — validated by `_resolve_endpoint()` (`alibaba.py:370`).
+
+> **Token Plan note for `hermes -z`:** Token Plan’s verified surface is `/chat/completions` (default `/images/generations` 404s on this host, as seen when the agent fell back to DashScope). Keep `image_gen.alibaba.endpoint: /chat/completions` set — `hermes -z "Generate an image..."` uses the same provider and endpoint, and will otherwise bypass Token Plan.
 
 ### 5. Verify it works and that requests hit Token Plan
 
@@ -124,8 +129,12 @@ grep -A2 image_gen ~/.hermes/config.yaml  # must be provider: alibaba
 
 **c) Live generation — check `plan` in the response (charged, ~$0.01, ~15s):**
 
+For Token Plan, endpoint must be `/chat/completions` (already set in step 4; verify `grep -A3 alibaba ~/.hermes/config.yaml` shows `endpoint: /chat/completions`):
+
 ```bash
 ~/.hermes/hermes-agent/venv/bin/python <<'PY'
+import os
+os.environ["ALIBABA_IMAGE_ENDPOINT"] = "/chat/completions"  # or rely on image_gen.alibaba.endpoint in config.yaml
 from plugins.image_gen_alibaba.alibaba import AlibabaImageGenProvider
 p=AlibabaImageGenProvider()
 assert p.is_available(), "no rung resolved — check ALIBABA_TOKEN_PLAN_API_KEY"
@@ -138,7 +147,7 @@ print(res)
 PY
 ```
 
-Or via gateway: `hermes -z "Generate an image of a red fox in a forest"` then `hermes logs --level DEBUG | grep -i "Alibaba alibaba-token-plan"`.
+Or via gateway (uses same `image_gen.alibaba.endpoint`): `hermes -z "Generate an image of a red fox in a forest"` then `hermes logs --level DEBUG | grep -i "Alibaba alibaba-token-plan"`.
 
 If `plan` is `alibaba` (PAYG) instead of `alibaba-token-plan`, the Token Plan key was not visible to Hermes — set it in `~/.hermes/.env` or `auth.json` pool, not just shell export. One-shot bypass still proves the endpoint: `p.generate(..., api_key='sk-tp-...', base_url='https://token-plan.ap-southeast-1.../compatible-mode/v1')`.
 
