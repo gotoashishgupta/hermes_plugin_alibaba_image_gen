@@ -1689,3 +1689,6 @@ latest
 
 # graphify generated outputs
 graphify-out/
+
+# post-refactor acceptance eval artifacts (local only)
+eval-runs/
