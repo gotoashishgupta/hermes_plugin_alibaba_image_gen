@@ -1,7 +1,7 @@
 ---
 name: hermes-image-pipeline
-description: Quality-gated image pipeline for the Hermes agent (brand_analysis -> generate_design_concepts -> generate_idea_image -> evaluate_image). Use whenever asked (here or via a task) to generate an image, visual, mockup, cover, poster, ad, UI art or brand/design asset from a description, brand or reference image — accepting only images scoring >= 4.0/5 after up to 2 retries. Hermes credentials decide what is selectable: providers configured in `hermes tools` (including OAuth like openai-codex) and the env keys of enabled image_gen plugins (alibaba, openrouter, fal, openai, ...). Skip when a generic (no-Hermes) image-pipeline skill is the one your harness already loaded.
-compatibility: Hermes-agent environment — a hermes-agent checkout (HERMES_AGENT_REPO or ~/.hermes/hermes-agent) with its venv, and at least one credentialed image_gen provider via `hermes tools` or ~/.hermes/.env.
+description: "Quality-gated image pipeline for the Hermes agent (brand_analysis -> generate_design_concepts -> generate_idea_image -> evaluate_image). Use whenever asked (here or via a task) to generate an image, visual, mockup, cover, poster, ad, UI art or brand/design asset from a description, brand or reference image — accepting only images scoring >= 4.0/5 after up to 2 retries. Hermes credentials decide what is selectable: providers configured in `hermes tools` (including OAuth like openai-codex) and the env keys of enabled image_gen plugins (alibaba, openrouter, fal, openai, ...). Skip when a generic (no-Hermes) image-pipeline skill is the one your harness already loaded."
+compatibility: "Hermes-agent environment — a hermes-agent checkout (HERMES_AGENT_REPO or ~/.hermes/hermes-agent) with its venv, and at least one credentialed image_gen provider via `hermes tools` or ~/.hermes/.env."
 ---
 
 # Image Pipeline (Hermes-native)

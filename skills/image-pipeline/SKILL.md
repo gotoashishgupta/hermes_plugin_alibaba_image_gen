@@ -1,7 +1,7 @@
 ---
 name: image-pipeline
-description: Use whenever the user asks to generate an image, visual, mockup, thumbnail, cover, poster, ad, UI art or brand/design asset from a description, brand, or reference image — even without naming a pipeline or provider. Quality-gated design pipeline (brand_analysis → generate_design_concepts → generate_idea_image → evaluate_image; accept only at ≥ 4.0/5 after up to 2 retries). Works in any harness: prefers Hermes' configured providers, with built-in adapters for Alibaba, OpenAI/OpenAI-compatible, OpenRouter, FAL, Google Gemini; handles user-named providers, user API keys, custom endpoints, and slide artwork for PowerPoint skills.
-compatibility: Python 3.11+ with stdlib only (no packages to install). Works in any harness. When a hermes-agent checkout is present (HERMES_AGENT_REPO or ~/.hermes/hermes-agent) the driver additionally uses Hermes' provider registry and switches to its venv python by itself.
+description: "Use whenever the user asks to generate an image, visual, mockup, thumbnail, cover, poster, ad, UI art or brand/design asset from a description, brand, or reference image — even without naming a pipeline or provider. Quality-gated design pipeline (brand_analysis → generate_design_concepts → generate_idea_image → evaluate_image; accept only at ≥ 4.0/5 after up to 2 retries). Works in any harness: prefers Hermes' configured providers, with built-in adapters for Alibaba, OpenAI/OpenAI-compatible, OpenRouter, FAL, Google Gemini; handles user-named providers, user API keys, custom endpoints, and slide artwork for PowerPoint skills."
+compatibility: "Python 3.11+ with stdlib only (no packages to install). Works in any harness. When a hermes-agent checkout is present (HERMES_AGENT_REPO or ~/.hermes/hermes-agent) the driver additionally uses Hermes' provider registry and switches to its venv python by itself."
 ---
 
 # Image Pipeline
