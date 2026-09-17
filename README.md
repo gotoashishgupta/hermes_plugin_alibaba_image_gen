@@ -26,14 +26,16 @@ Hermes reports missing `python_dependencies` from the manifest but does not inst
 ### 1. Install the plugin
 
 ```bash
-hermes plugins install <org>/hermes_plugin_alibaba_image_gen --enable
+hermes plugins install <org>/hermes_plugin_alibaba_image_gen/plugins/image_gen_alibaba --enable
+# or: hermes plugins install https://github.com/<org>/hermes_plugin_alibaba_image_gen#plugins/image_gen_alibaba --enable
 ```
 
-Replace `<org>` with the GitHub owner hosting this repository. The published default
-branch must contain the root `plugin.yaml`, `__init__.py`, and `alibaba.py`.
-Hermes installs the repository at `$HERMES_HOME/plugins/alibaba/`
-(default `~/.hermes/plugins/alibaba/`) and enables plugin ID `alibaba`.
-No pip installation, subdirectory fragment, relocation script, or manual copy is needed.
+Replace `<org>` with the GitHub owner hosting this repository. The plugin lives in
+`plugins/image_gen_alibaba/plugin.yaml` + `plugins/image_gen_alibaba/__init__.py` +
+`plugins/image_gen_alibaba/alibaba.py` — only that subdirectory is copied. Hermes
+installs it at `$HERMES_HOME/plugins/alibaba/` (default `~/.hermes/plugins/alibaba/`)
+and enables plugin ID `alibaba`. No pip installation, relocation script, or manual copy
+is needed; `tests/`, `README.md`, `pyproject.toml`, and `uv.lock` stay out of the install.
 
 ### 2. Verify discovery
 
@@ -424,9 +426,10 @@ The result always reports `plan` (which plan answered) and `plans_tried` (the fu
 
 ## Testing
 
-The repository root is the plugin: `__init__.py` registers the provider implemented
-once in `alibaba.py`. `pyproject.toml` and `uv.lock` are development-only, not a pip package.
-Tests require a Hermes source checkout at `~/.hermes/hermes-agent`, or set
+The plugin is `plugins/image_gen_alibaba/` (`__init__.py` registers the provider
+implemented once in `alibaba.py`; `plugin.yaml` is the manifest). `pyproject.toml` and
+`uv.lock` are development-only, not a pip package; `tests/` stay out of the installed
+plugin. Tests require a Hermes source checkout at `~/.hermes/hermes-agent`, or set
 `HERMES_AGENT_REPO` to its path. The local uv development interpreter is selected by
 `.python-version`; tests can also run using Hermes' Python with pytest installed.
 
@@ -436,10 +439,12 @@ uv run --locked --group dev pytest -q
 
 Coverage includes credential resolution, payloads, response parsing, reference images,
 plan advancement, endpoint overrides, native manifest discovery, registration without
-pip entry points, and installer destination/metadata. HTTP and Git cloning are mocked;
-no live API calls or production Hermes configuration changes occur.
+pip entry points, and installer destination/metadata (fragment install copies only
+`plugins/image_gen_alibaba/`). HTTP and Git cloning are mocked; no live API calls or
+production Hermes configuration changes occur.
 
-Project-local discovery is optional for development only: place a link to this checkout
-at `<workspace>/.hermes/plugins/alibaba`, launch Hermes from that workspace with
-`HERMES_ENABLE_PROJECT_PLUGINS=1`, and enable `alibaba`. The canonical distribution path
-remains `hermes plugins install <org>/hermes_plugin_alibaba_image_gen --enable`.
+Project-local discovery is optional for development only: link `plugins/image_gen_alibaba/`
+to `<workspace>/.hermes/plugins/alibaba` (symlink the repo's `plugins/image_gen_alibaba/` dir),
+launch Hermes from that workspace with `HERMES_ENABLE_PROJECT_PLUGINS=1`, and enable
+`alibaba`. The canonical distribution path remains
+`hermes plugins install <org>/hermes_plugin_alibaba_image_gen/plugins/image_gen_alibaba --enable`.

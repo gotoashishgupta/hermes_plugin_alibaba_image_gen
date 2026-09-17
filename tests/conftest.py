@@ -16,6 +16,9 @@ if (_REPO / "agent" / "image_gen_provider.py").is_file() and str(_REPO) not in s
     sys.path.insert(0, str(_REPO))
 
 _ROOT = Path(__file__).resolve().parents[1]
+_PLUGIN = _ROOT / "plugins" / "image_gen_alibaba"
+if str(_PLUGIN) not in sys.path:
+    sys.path.insert(0, str(_PLUGIN))
 if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 

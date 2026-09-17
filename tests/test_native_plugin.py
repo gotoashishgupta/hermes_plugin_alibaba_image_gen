@@ -14,10 +14,11 @@ import yaml
 
 
 ROOT = Path(__file__).resolve().parents[1]
+PLUGIN = ROOT / "plugins" / "image_gen_alibaba"
 
 
 def test_native_manifest_has_no_credential_gate():
-    manifest = yaml.safe_load((ROOT / "plugin.yaml").read_text())
+    manifest = yaml.safe_load((PLUGIN / "plugin.yaml").read_text())
     assert manifest["name"] == "alibaba"
     assert manifest["kind"] == "backend"
     assert "requires_env" not in manifest
@@ -38,7 +39,7 @@ def test_native_directory_discovery_registers_instance(tmp_path, monkeypatch, cr
 
     plugin_dir = tmp_path / "plugins" / "checkout-name"
     plugin_dir.parent.mkdir()
-    plugin_dir.symlink_to(ROOT, target_is_directory=True)
+    plugin_dir.symlink_to(PLUGIN, target_is_directory=True)
     (tmp_path / "config.yaml").write_text("plugins:\n  enabled: [alibaba]\n")
     monkeypatch.setenv("HERMES_SAFE_MODE", "0")
     monkeypatch.setenv("HERMES_ENABLE_PROJECT_PLUGINS", "0")
@@ -58,7 +59,7 @@ def test_native_directory_discovery_registers_instance(tmp_path, monkeypatch, cr
         assert loaded.manifest.source == "user"
         assert loaded.manifest.kind == "backend"
         assert loaded.manifest.requires_env == []
-        assert Path(loaded.module.__file__).resolve() == ROOT / "__init__.py"
+        assert Path(loaded.module.__file__).resolve() == PLUGIN / "__init__.py"
         provider = image_gen_registry.get_provider("alibaba", scope=manager.scope_key)
         assert isinstance(provider, ImageGenProvider)
         assert isinstance(provider, loaded.module.AlibabaImageGenProvider)
@@ -93,7 +94,7 @@ def test_install_core_discovers_and_loads_installed_root_files(tmp_path, monkeyp
     monkeypatch.setattr(socket, "create_connection", deny_network)
     monkeypatch.setattr(socket.socket, "connect", deny_network)
     monkeypatch.setattr(socket.socket, "connect_ex", deny_network)
-    identifier = "example/hermes-plugin-alibaba-image-gen"
+    identifier = "example/hermes-plugin-alibaba-image-gen/plugins/image_gen_alibaba"
     revision = "a" * 40
     files = ("__init__.py", "alibaba.py", "plugin.yaml")
 
@@ -101,8 +102,16 @@ def test_install_core_discovers_and_loads_installed_root_files(tmp_path, monkeyp
         assert git_url == "https://github.com/example/hermes-plugin-alibaba-image-gen.git"
         assert requested_revision is None
         destination.mkdir()
+        (destination / "plugins").mkdir()
+        (destination / "plugins" / "image_gen_alibaba").mkdir(parents=True)
         for name in files:
-            shutil.copyfile(ROOT / name, destination / name)
+            shutil.copyfile(PLUGIN / name, destination / "plugins" / "image_gen_alibaba" / name)
+        # extra repo files that must NOT be installed
+        (destination / "README.md").write_text("repo readme")
+        (destination / "tests").mkdir()
+        (destination / "tests" / "dummy.py").write_text("# test")
+        (destination / "pyproject.toml").write_text("[tool]")
+        (destination / "uv.lock").write_text("lock")
         return revision
 
     clone = Mock(side_effect=populate_clone)
@@ -119,22 +128,28 @@ def test_install_core_discovers_and_loads_installed_root_files(tmp_path, monkeyp
     assert manifest["kind"] == "backend"
     assert "requires_env" not in manifest
     clone.assert_called_once()
-    scan.assert_called_once_with(clone.call_args.args[0], identifier,
-                                 force=False, scan_decision_cb=None)
+    scan.assert_called_once()
+    assert scan.call_args.args[1] == identifier
+    assert scan.call_args.kwargs["force"] is False
+    # only plugin/ files are installed, repo extras are not
     assert json.loads((home / "plugins" / ".install-metadata.json").read_text()) == {
         "alibaba": {
             "pinned": False,
             "revision": revision,
-            "source": "https://github.com/example/hermes-plugin-alibaba-image-gen.git",
+            "source": "https://github.com/example/hermes-plugin-alibaba-image-gen.git#plugins/image_gen_alibaba",
         },
     }
     for filename in files:
-        assert (target / filename).read_bytes() == (ROOT / filename).read_bytes()
+        assert (target / filename).read_bytes() == (PLUGIN / filename).read_bytes()
         assert not (target / filename).is_symlink()
+    assert not (target / "README.md").exists()
+    assert not (target / "tests").exists()
+    assert not (target / "pyproject.toml").exists()
 
     monkeypatch.setattr(sys, "path", [
         entry for entry in sys.path
         if not Path(entry).resolve().is_relative_to(ROOT)
+        and not Path(entry).resolve().is_relative_to(PLUGIN)
         and Path(entry).resolve() != ROOT.parent
     ])
     monkeypatch.delitem(sys.modules, "alibaba", raising=False)
