@@ -272,7 +272,7 @@ Tests require a Hermes source checkout at `~/.hermes/hermes-agent`, or set
 `.python-version`; tests can also run using Hermes' Python with pytest installed.
 
 ```bash
-uv run --locked --group dev python -m pytest tests/
+uv run --locked --group dev pytest -q
 ```
 
 Coverage includes credential resolution, payloads, response parsing, reference images,
