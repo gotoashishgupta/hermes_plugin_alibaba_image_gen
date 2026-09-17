@@ -25,10 +25,22 @@ Hermes reports missing `python_dependencies` from the manifest but does not inst
 
 ### 1. Install the plugin
 
+Shorthand uses slashes only — never `#`:
+
 ```bash
 hermes plugins install <org>/hermes_plugin_alibaba_image_gen/plugins/image_gen_alibaba --enable
-# or: hermes plugins install https://github.com/<org>/hermes_plugin_alibaba_image_gen#plugins/image_gen_alibaba --enable
 ```
+
+Full URL uses exactly one `#` followed by the full subdir path:
+
+```bash
+hermes plugins install https://github.com/<org>/hermes_plugin_alibaba_image_gen#plugins/image_gen_alibaba --enable
+```
+
+Do **not** mix them: `<repo>#plugins/image_gen_alibaba` parses as repo
+`<repo>#plugins` + subdir `image_gen_alibaba`, cloning
+`https://github.com/<org>/hermes_plugin_alibaba_image_gen#plugins.git` and failing with
+`info/refs not valid`. Expect `Cloning https://github.com/<org>/hermes_plugin_alibaba_image_gen.git (subdir: plugins/image_gen_alibaba)...`.
 
 Replace `<org>` with the GitHub owner hosting this repository. The plugin lives in
 `plugins/image_gen_alibaba/plugin.yaml` + `plugins/image_gen_alibaba/__init__.py` +
@@ -95,18 +107,26 @@ incur provider charges; `hermes plugins doctor alibaba --ci` only checks plugin 
 hermes plugins update alibaba
 ```
 
-For an old pip installation, disable `alibaba-imggen` and uninstall
-`hermes-plugin-alibaba-image-gen` from the same Python environment used by Hermes
-before enabling the native plugin. This avoids two plugins registering provider
-`alibaba`. Preserve existing credentials and `image_gen` configuration.
+For the pre-rename pip install, remove the orphan entry-point (shows as
+`alibaba-imggen` with `Failed to load ... No module named 'hermes_plugin_image_gen_ext'`):
 
 ```bash
 hermes plugins disable alibaba-imggen
-uv pip uninstall --python ~/.hermes/hermes-agent/venv/bin/python3 hermes-plugin-alibaba-image-gen
+~/.hermes/hermes-agent/venv/bin/python -m pip uninstall hermes_plugin_image_gen_ext
+hermes plugins list | grep -i alib  # alibaba-imggen row must be gone
 ```
 
-Adjust the Python path for your Hermes installation. Pip distribution and the old
-`hermes_plugin_alibaba_image_gen` import path are no longer supported.
+If pip says “not installed”, delete the two orphans directly — they are the
+entire install (RECORD shows only dist-info + `.pth`, no package files):
+
+```bash
+rm -rf ~/.hermes/hermes-agent/venv/lib/python3.11/site-packages/hermes_plugin_image_gen_ext-0.1.0.dist-info \
+       ~/.hermes/hermes-agent/venv/lib/python3.11/site-packages/hermes_plugin_image_gen_ext.pth
+```
+
+Then `hermes gateway restart` (or fresh session) before reinstalling the
+native path. Pip distribution and the old `hermes_plugin_alibaba_image_gen`
+import path are no longer supported.
 
 ---
 
