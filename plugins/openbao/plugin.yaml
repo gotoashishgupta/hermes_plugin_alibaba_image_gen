@@ -1,0 +1,5 @@
+name: openbao
+version: "0.1.0"
+description: "Source API keys and tokens from OpenBao Vault via AppRole authentication"
+author: "Ashish"
+kind: standalone
