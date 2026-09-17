@@ -13,7 +13,7 @@ import pytest
 import yaml
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[2]
 PLUGIN = ROOT / "plugins" / "image_gen_alibaba"
 
 

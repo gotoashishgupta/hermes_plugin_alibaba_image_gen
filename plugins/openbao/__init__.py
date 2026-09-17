@@ -327,7 +327,7 @@ def _query_secret_value(path, token, addr, ns=None):
     Returns the string value on success, None if the read failed or is empty."""
     if "/" in path:
         mount, rel = path.split("/", 1)
-        cmd_args = ["kv", "get", "-format=json", f"-mount={mount}", rel]
+        cmd_args = ["kv", "get", "-format=json", f"-mount={mount}", "-version=2", rel]
     else:
         cmd_args = ["kv", "get", "-format=json", path]
 

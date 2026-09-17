@@ -127,3 +127,22 @@ VAULT_TOKEN="$HERMES_TOKEN" bao token revoke -self
 
 unset HERMES_TOKEN ROLE_ID SECRET_ID
 ```
+
+## Operator runbook (m5 deployment, AppRole)
+
+Canonical login for this repo (pattern only — `secret_id` never leaves its file, tokens are never logged):
+
+```bash
+HERMES_TOKEN="$(bao write -format=json -namespace=m5 auth/approle/login role_id="caec24c0-0567-38ba-4bd4-9b0f7025505a" secret_id=$(cat ~/.hermes/auth/openbao-secret-id) | jq -r .auth.client_token)"
+BAO_ADDR=https://openbao.in.m5.example.com BAO_NAMESPACE=m5
+```
+
+Proven read forms that skip the `sys/internal/ui/mounts` preflight (the source of the 403s under the wildcard `kv-dev/data/hermes/*` policy):
+
+```bash
+VAULT_TOKEN="$HERMES_TOKEN" bao kv get -namespace=m5 -mount=kv-dev -version=2 -format=json hermes/ALIBABA_TOKEN_PLAN_API_KEY | head -3; echo "rc=$?"
+VAULT_TOKEN="$HERMES_TOKEN" bao kv list -namespace=m5 -mount=kv-dev -format=json hermes | head; echo "rc=$?"
+VAULT_TOKEN="$HERMES_TOKEN" bao read -namespace=m5 kv-dev/data/hermes/ALIBABA_TOKEN_PLAN_API_KEY  # bypasses CLI version detection entirely
+```
+
+The plugin now shells out as `bao kv ... -mount=kv-dev -version=2 hermes/<NAME>` (and `-mount=kv-dev hermes` for list), so the `sys/internal/ui/mounts` lookup is never issued.
